@@ -124,30 +124,38 @@ function renderBoard() {
             if (piece) {
                 const pieceEl = document.createElement('div');
                 pieceEl.className = `piece ${piece.color}`;
-                
-                // Limpiamos cualquier contenido previo por seguridad
                 pieceEl.innerHTML = '';
                 
-                // 1. Obtenemos el nombre clave de la pieza (ej: 'peon' o 'sargento')
+                // 1. Obtenemos el nombre clave de la pieza
                 const pieceName = piece.promoted ? PIECES[piece.type].promoted : PIECES[piece.type].base;
                 
+                // Diagnóstico en consola si la clave no existe
+                if (!PIECE_IMAGES[piece.color] || !PIECE_IMAGES[piece.color][pieceName]) {
+                    console.error(`Error: No existe clave en PIECE_IMAGES para color: "${piece.color}" y pieceName: "${pieceName}"`);
+                }
+
                 // 2. Creamos el elemento de imagen
                 const img = document.createElement('img');
                 
-                // 3. Asignamos la ruta usando el diccionario PIECE_IMAGES
-                img.src = PIECE_IMAGES[piece.color][pieceName];
+                // 3. Asignamos la ruta
+                const imagePath = PIECE_IMAGES[piece.color] ? PIECE_IMAGES[piece.color][pieceName] : '';
+                img.src = imagePath;
                 img.classList.add('piece-image');
-                img.onerror = function() { this.style.display='none'; };
+                
+                // En lugar de ocultar la imagen si falla, mostramos en consola la URL exacta que falló
+                img.onerror = function() {
+                    console.error(`Error 404 cargando imagen: ${this.src}`);
+                    // Muestra un borde rojo en la pieza para saber qué casilla está fallando visualmente
+                    this.style.border = '1px solid red'; 
+                };
                 
                 // 4. Agregamos la imagen al contenedor
                 pieceEl.appendChild(img);
                 
-                // 2. Dibuja estrellas de experiencia si la pieza no ha promovido y tiene capturas
+                // Estrellas de experiencia
                 if (!piece.promoted && piece.kills > 0) {
                     const starsContainer = document.createElement('span');
                     starsContainer.className = 'stars-badge';
-                    
-                    // Genera '★' si kills === 1, o '★★' si kills === 2
                     starsContainer.innerText = '★'.repeat(piece.kills);
                     pieceEl.appendChild(starsContainer);
                 }
