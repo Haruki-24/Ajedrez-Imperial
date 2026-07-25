@@ -23,34 +23,34 @@ const PIECES = {
 
 const PIECE_IMAGES = {
     white: {
-        alfil: '/assets/icons/b-alfil.png',
-        caballero: '/assets/icons/b-caballero.png',
-        caballo: '/assets/icons/b-caballo.png',
-        emperador: '/assets/icons/b-emperador.png',
-        emperatriz: '/assets/icons/b-emperatriz.png',
-        escudero: '/assets/icons/b-escudero.png',
-        general_real: '/assets/icons/b-general-real.png',
-        paladin: '/assets/icons/b-paladin.png',
-        peon: '/assets/icons/b-peon-b.png',
-        reina: '/assets/icons/b-reina.png',
-        sargento: '/assets/icons/b-sargento.png',
-        torre: '/assets/icons/b-torre.png',
-        vigia: '/assets/icons/b-vigia.png'
+        alfil: 'assets/icons/b-alfil.png',
+        caballero: 'assets/icons/b-caballero.png',
+        caballo: 'assets/icons/b-caballo.png',
+        emperador: 'assets/icons/b-emperador.png',
+        emperatriz: 'assets/icons/b-emperatriz.png',
+        escudero: 'assets/icons/b-escudero.png',
+        general_real: 'assets/icons/b-general-real.png',
+        paladin: 'assets/icons/b-paladin.png',
+        peon: 'assets/icons/b-peon-b.png',
+        reina: 'assets/icons/b-reina.png',
+        sargento: 'assets/icons/b-sargento.png',
+        torre: 'assets/icons/b-torre.png',
+        vigia: 'assets/icons/b-vigia.png'
     },
     black: {
-        alfil: '/assets/icons/n-alfil.png',
-        caballero: '/assets/icons/n-caballero.png',
-        caballo: '/assets/icons/n-caballo.png',
-        emperador: '/assets/icons/n-emperador.png',
-        emperatriz: '/assets/icons/n-emperatriz.png',
-        escudero: '/assets/icons/n-escudero.png',
-        general_real: '/assets/icons/n-general-real.png',
-        paladin: '/assets/icons/n-paladin.png',
-        peon: '/assets/icons/n-peon.png',
-        reina: '/assets/icons/n-reina.png',
-        sargento: '/assets/icons/n-sargento.png',
-        torre: '/assets/icons/n-torre.png',
-        vigia: '/assets/icons/n-vigia.png'
+        alfil: 'assets/icons/n-alfil.png',
+        caballero: 'assets/icons/n-caballero.png',
+        caballo: 'assets/icons/n-caballo.png',
+        emperador: 'assets/icons/n-emperador.png',
+        emperatriz: 'assets/icons/n-emperatriz.png',
+        escudero: 'assets/icons/n-escudero.png',
+        general_real: 'assets/icons/n-general-real.png',
+        paladin: 'assets/icons/n-paladin.png',
+        peon: 'assets/icons/n-peon.png',
+        reina: 'assets/icons/n-reina.png',
+        sargento: 'assets/icons/n-sargento.png',
+        torre: 'assets/icons/n-torre.png',
+        vigia: 'assets/icons/n-vigia.png'
     }
 };
 
