@@ -184,3 +184,53 @@ body {
 }
 .square.light .square-coord { color: #739552; }
 .square.dark .square-coord { color: #ebecd0; }
+
+@media (max-width: 768px) {
+  .game-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sidebar-coords,
+  .bottom-coords {
+    display: none;           /* ocultamos las externas */
+  }
+
+  .board-container {
+    max-width: 100%;
+    width: 100%;
+    border-width: 4px;
+  }
+
+  /* Mostramos las coordenadas internas en cada casilla */
+  .square .square-coord {
+    opacity: 0.7 !important; /* forzamos visibilidad */
+    font-size: 0.5rem;
+  }
+  /* Ajustamos colores según el fondo */
+  .square.light .square-coord {
+    color: #739552;
+  }
+  .square.dark .square-coord {
+    color: #ebecd0;
+  }
+
+  /* Tamaños de piezas y marcadores */
+  .piece-image {
+    width: 70%;
+    height: 70%;
+  }
+  .piece .stars-badge {
+    font-size: 0.5rem;
+  }
+  .valid-move-dot {
+    width: 25%;
+    height: 25%;
+  }
+  .valid-capture-ring {
+    width: 70%;
+    height: 70%;
+    border-width: 4px;
+  }
+}
