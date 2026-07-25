@@ -3,9 +3,9 @@
 ![Estado del Proyecto](https://img.shields.io/badge/Estado-Alpha_v0.1-orange)
 ![Licencia](https://img.shields.io/badge/Licencia-Propiedad_Intelectual_Reservada-blue)
 
-**Ajedrez Imperial** es una variante táctica de ajedrez sobre un tablero extendido de 10x10 que introduce mecánicas de evolución de piezas (promoción progresiva por capturas) y una jerarquía de unidades ampliada. 
+**Ajedrez Imperial** es una variante táctica de ajedrez sobre un tablero extendido de 10x10 que introduce mecánicas de evolución de piezas similar al shogi (promoción progresiva por capturas) y una jerarquía de unidades ampliada. 
 
-Esta versión demo web interactiva incluye un entorno de prueba de movimientos, un modo de juego local y un **motor de Inteligencia Artificial (CPU)** desarrollado en JavaScript utilizando el algoritmo **Minimax**.
+Esta versión demo web interactiva incluye un entorno de prueba de movimientos, un modo de juego local y un **Motor (CPU)** desarrollado en JavaScript utilizando el algoritmo **Minimax**.
 
 ---
 
@@ -20,8 +20,8 @@ Puedes probar la versión alfa directamente en tu navegador (compatible con PC y
 
 Para consultar las reglas oficiales, la jerarquía militar completa de las piezas y la tabla de evoluciones por experiencia, accede a la documentación oficial:
 
-* 📄 **[Documentación y Reglamento Oficial](assets/docs/)** *(o indica la ruta a tu archivo de reglas)*
-* 🧪 **Tablero de Práctica:** Incluido en la demo web para explorar el alcance y movimiento de cada pieza antes de jugar.
+* 📄 **[Documentación y Reglamento Oficial](https://github.com/Haruki-24/Ajedrez-Imperial/blob/main/assets/docs/Reglamento%20Ajedrez%20imperial.pdf)**
+* 🧪 **Tablero de Práctica:** Incluido en la demo web para explorar el alcance y movimiento de cada pieza antes de jugar. (en desarrollo)
 
 ---
 
@@ -29,10 +29,10 @@ Para consultar las reglas oficiales, la jerarquía militar completa de las pieza
 
 El proyecto está construido desde cero con tecnologías web estándar:
 
-* **Frontend:** HTML5, CSS3 (Tailwind CSS) y JavaScript Vanilla.
+* **Frontend:** HTML5, CSS3 (Tailwind CSS) y JavaScript.
 * **Motor CPU:** Implementación propia basada en el algoritmo **Minimax** con funciones de evaluación estática del tablero, análisis de movilidad y ponderación de capturas clave en JS.
 * **Modos de juego:**
-  * Modo Práctica / Guía Interactiva (`test.js`)
+  * Modo Práctica (en desarrollo)
   * Modo Humano vs. Humano
   * Modo Humano vs. CPU Minimax (`cpu.js`)
 
