@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajedrez Imperial 10x10</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/styles.css" />
+<base target="_blank">
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row items-center justify-center p-2 lg:p-8 gap-6 bg-[#1e1e1e]">
+
+    <aside class="w-full lg:w-80 flex flex-col gap-4 no-scrollbar">
+        <div class="bg-[#262421] p-5 rounded-lg shadow-xl">
+            <h1 class="text-2xl font-bold text-white mb-1">Ajedrez Imperial</h1>
+            <p class="text-sm text-gray-400 mb-4">Tablero 10x10. Mecanicas de ascenso de clases.</p>
+            <div class="flex items-center justify-between bg-[#302e2b] p-3 rounded mb-4">
+                <span class="text-gray-300 font-semibold">Turno:</span>
+                <div class="flex items-center gap-2">
+                    <div id="turn-indicator-color" class="w-4 h-4 rounded-full bg-white border border-gray-400"></div>
+                    <span id="turn-text" class="text-white font-bold text-lg">Blancas</span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="text-xs uppercase text-gray-500 font-bold tracking-wider block mb-2">Modo de Juego</label>
+                <select id="game-mode" onchange="changeGameMode(this.value)" class="w-full bg-[#302e2b] text-white p-2 rounded border border-gray-600 text-sm">
+                    <option value="pvp">2 Jugadores (Local)</option>
+                    <option value="pvc">1 Jugador vs CPU</option>
+                </select>
+            </div>
+            <div class="space-y-3 mb-4">
+                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider">Peones Capturados (Para Ascenso)</h3>
+                <div class="flex justify-between items-center bg-[#302e2b] p-2 rounded border-l-4 border-white">
+                    <span class="text-sm text-gray-300">Blancas (A/T)</span>
+                    <span class="text-lg font-bold text-green-400"><span id="white-captures">0</span> <span class="text-xs text-gray-500">/ 3</span></span>
+                </div>
+                <div class="flex justify-between items-center bg-[#302e2b] p-2 rounded border-l-4 border-[#111]">
+                    <span class="text-sm text-gray-300">Negras (A/T)</span>
+                    <span class="text-lg font-bold text-green-400"><span id="black-captures">0</span> <span class="text-xs text-gray-500">/ 3</span></span>
+                </div>
+            </div>
+            <div id="game-message" class="text-sm text-center text-yellow-400 font-semibold min-h-[40px] flex items-center justify-center">
+                Partida iniciada!
+            </div>
+            <button onclick="resetGame()" class="w-full mt-2 bg-[#81b64c] hover:bg-[#8bc253] text-white font-bold py-3 px-4 rounded shadow transition">
+                Nueva Partida
+            </button>
+        </div>
+        <div class="bg-[#262421] p-5 rounded-lg shadow-xl">
+            <h2 class="text-xl font-bold text-white mb-2">Reglas del Juego</h2>
+            <p class="text-sm text-gray-400 mb-4">El objetivo es dar Jaque Mate al Emperador. Las piezas ascienden capturando peones o avanzando al territorio rival.</p>
+            <ul class="list-disc list-inside text-gray-300 text-sm space-y-1">
+                <li>Tablero 10x10 con coordenadas cartesianas imperiales.</li>
+                <li><strong>Evolucion por Caza:</strong> Vigia/Escudero a Torre/Alfil tras 3 peones. Reina a Emperatriz tras 1 captura.</li>
+                <li><strong>Evolucion por Territorio:</strong> Peon/Caballo/Paladin ascienden en las ultimas 2 filas enemigas.</li>
+                <li><strong>Enroque Imperial:</strong> Limpieza de flanco, inmovilidad previa y casillas seguras.</li>
+                <li>Victoria por Jaque Mate al Emperador.</li>
+            </ul>
+        </div>
+    </aside>
+
+    <main class="flex-1 w-full flex justify-center">
+        <div class="flex items-center gap-4 sm:gap-6 p-4 sm:p-8">
+            <div class="text-gray-500 font-bold tracking-[0.3em] text-lg sm:text-xl" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                OESTE
+            </div>
+            <div class="flex flex-col">
+                <div class="flex mb-4">
+                    <div class="w-[38px]"></div>
+                    <div class="w-[600px] text-center text-gray-500 font-bold tracking-[0.3em] text-lg sm:text-xl">NORTE</div>
+                </div>
+                <div class="flex">
+                    <div id="y-coords" class="sidebar-coords"></div>
+                    <div>
+                        <div id="board" class="board-container shadow-2xl"></div>
+                        <div id="x-coords" class="bottom-coords"></div>
+                    </div>
+                </div>
+                <div class="flex mt-6">
+                    <div class="w-[38px]"></div>
+                    <div class="w-[600px] text-center text-gray-500 font-bold tracking-[0.3em] text-lg sm:text-xl">SUR</div>
+                </div>
+            </div>
+            <div class="text-gray-500 font-bold tracking-[0.3em] text-lg sm:text-xl" style="writing-mode: vertical-rl;">ESTE</div>
+        </div>
+    </main>
+
+    <aside class="w-full lg:w-80 flex flex-col gap-4 no-scrollbar">
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
+            <h3 class="text-sm uppercase text-gray-500 font-bold tracking-wider mb-3">Herramientas / Practica</h3>
+            <div class="flex gap-2 mb-3">
+                <button onclick="undoMove()" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">Deshacer</button>
+                <button onclick="toggleCoords()" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">Coordenadas</button>
+            </div>
+        </div>
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl text-sm">
+            <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-2">Leyenda de Piezas</h3>
+            <div class="grid grid-cols-2 gap-2 text-gray-300">
+                <div class="bg-[#302e2b] p-2 rounded"><div class="flex items-center gap-2"><img src="assets/icons/b-peon-b.png" class="w-6 h-6"><span class="text-white">-></span><img src="assets/icons/b-sargento.png" class="w-6 h-6"></div><span class="text-xs text-gray-500 block mt-1">Peon / Sargento</span></div>
+                <div class="bg-[#302e2b] p-2 rounded"><div class="flex items-center gap-2"><img src="assets/icons/b-vigia.png" class="w-6 h-6"><span class="text-white">-></span><img src="assets/icons/b-torre.png" class="w-6 h-6"></div><span class="text-xs text-gray-500 block mt-1">Vigia / Torre</span></div>
+                <div class="bg-[#302e2b] p-2 rounded"><div class="flex items-center gap-2"><img src="assets/icons/b-caballo.png" class="w-6 h-6"><span class="text-white">-></span><img src="assets/icons/b-caballero.png" class="w-6 h-6"></div><span class="text-xs text-gray-500 block mt-1">Caballo / C. Imperial</span></div>
+                <div class="bg-[#302e2b] p-2 rounded"><div class="flex items-center gap-2"><img src="assets/icons/b-paladin.png" class="w-6 h-6"><span class="text-white">-></span><img src="assets/icons/b-general-real.png" class="w-6 h-6"></div><span class="text-xs text-gray-500 block mt-1">Paladin / G. Imperial</span></div>
+                <div class="bg-[#302e2b] p-2 rounded"><div class="flex items-center gap-2"><img src="assets/icons/b-escudero.png" class="w-6 h-6"><span class="text-white">-></span><img src="assets/icons/b-alfil.png" class="w-6 h-6"></div><span class="text-xs text-gray-500 block mt-1">Escudero / Alfil</span></div>
+                <div class="bg-[#302e2b] p-2 rounded"><div class="flex items-center gap-2"><img src="assets/icons/b-reina.png" class="w-6 h-6"><span class="text-white">-></span><img src="assets/icons/b-emperatriz.png" class="w-6 h-6"></div><span class="text-xs text-gray-500 block mt-1">Reina / Emperatriz</span></div>
+                <div class="bg-[#302e2b] p-2 rounded col-span-2 text-center"><div class="flex items-center justify-center gap-2"><img src="assets/icons/b-emperador.png" class="w-6 h-6"><span class="text-white">Emperador</span></div></div>
+            </div>
+        </div>
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
+            <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-2">Historial Imperial</h3>
+            <div id="move-history-list" class="h-40 overflow-y-auto bg-[#302e2b] rounded p-2 text-sm text-gray-300 font-mono space-y-1"></div>
+        </div>
+    </aside>
+
+    <script src="/jscripts/game.js"></script>
+    <script src="/jscripts/cpu.js"></script>
+</body>
+</html>
