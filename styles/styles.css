@@ -185,35 +185,37 @@ body {
 .square.light .square-coord { color: #739552; }
 .square.dark .square-coord { color: #ebecd0; }
 
+
+
 @media (max-width: 768px) {
   .game-wrapper {
     width: 100%;
-    display: flex;
-    justify-content: center;
+    grid-template-columns: auto 1fr; /* el tablero ocupa el resto */
+    gap: 0;
   }
 
-  .sidebar-coords,
-  .bottom-coords {
-    display: none;           /* ocultamos las externas */
+  .sidebar-coords {
+    width: 18px;             /* más estrecho */
+    margin-right: 4px;
+  }
+  .coord-y {
+    font-size: 0.5rem;       /* texto más pequeño */
   }
 
   .board-container {
     max-width: 100%;
     width: 100%;
-    border-width: 4px;
+    border-width: 4px;       /* borde más fino */
   }
 
-  /* Mostramos las coordenadas internas en cada casilla */
-  .square .square-coord {
-    opacity: 0.7 !important; /* forzamos visibilidad */
+  .bottom-coords {
+    width: 100%;             /* ya no es fijo */
+    margin-left: 0;          /* se alinea con el tablero */
+    padding-left: calc(18px + 4px); /* compensa el ancho del sidebar + margen */
+    box-sizing: border-box;
+  }
+  .coord-x {
     font-size: 0.5rem;
-  }
-  /* Ajustamos colores según el fondo */
-  .square.light .square-coord {
-    color: #739552;
-  }
-  .square.dark .square-coord {
-    color: #ebecd0;
   }
 
   /* Tamaños de piezas y marcadores */
@@ -232,5 +234,8 @@ body {
     width: 70%;
     height: 70%;
     border-width: 4px;
+  }
+  .square .square-coord {
+    font-size: 0.5rem;       /* si las usas */
   }
 }
