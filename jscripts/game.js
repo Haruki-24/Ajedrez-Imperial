@@ -23,34 +23,34 @@ const PIECES = {
 
 const PIECE_IMAGES = {
     white: {
-        alfil: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-alfil.png',
-        caballero: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-caballero.png',
-        caballo: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-caballo.png',
-        emperador: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-emperador.png',
-        emperatriz: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-emperatriz.png',
-        escudero: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-escudero.png',
-        general_real: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-general-real.png',
-        paladin: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-paladin.png',
-        peon: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-peon-b.png',
-        reina: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-reina.png',
-        sargento: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/b-sargento.png',
-        torre: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons//b-torre.png',
+        alfil: 'assets/icons/b-alfil.png',
+        caballero: 'assets/icons/b-caballero.png',
+        caballo: 'assets/icons/b-caballo.png',
+        emperador: 'assets/icons/b-emperador.png',
+        emperatriz: 'assets/icons/b-emperatriz.png',
+        escudero: 'assets/icons/b-escudero.png',
+        general_real: 'assets/icons/b-general-real.png',
+        paladin: 'assets/icons/b-paladin.png',
+        peon: 'assets/icons/b-peon-b.png',
+        reina: 'assets/icons/b-reina.png',
+        sargento: 'assets/icons/b-sargento.png',
+        torre: 'assets/icons/b-torre.png',
         vigia: 'assets/icons/b-vigia.png'
     },
     black: {
-        alfil: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-alfil.png',
-        caballero: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-caballero.png',
-        caballo: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-caballo.png',
-        emperador: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-emperador.png',
-        emperatriz: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-emperatriz.png',
-        escudero: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-escudero.png',
-        general_real: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-general-real.png',
-        paladin: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-paladin.png',
-        peon: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-peon.png',
-        reina: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-reina.png',
-        sargento: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-sargento.png',
-        torre: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-torre.png',
-        vigia: 'https://haruki-24.github.io/Ajedrez-Imperial/assets/icons/n-vigia.png'
+        alfil: 'assets/icons/n-alfil.png',
+        caballero: 'assets/icons/n-caballero.png',
+        caballo: 'assets/icons/n-caballo.png',
+        emperador: 'assets/icons/n-emperador.png',
+        emperatriz: 'assets/icons/n-emperatriz.png',
+        escudero: 'assets/icons/n-escudero.png',
+        general_real: 'assets/icons/n-general-real.png',
+        paladin: 'assets/icons/n-paladin.png',
+        peon: 'assets/icons/n-peon.png',
+        reina: 'assets/icons/n-reina.png',
+        sargento: 'assets/icons/n-sargento.png',
+        torre: 'assets/icons/n-torre.png',
+        vigia: 'assets/icons/n-vigia.png'
     }
 };
 
@@ -124,38 +124,30 @@ function renderBoard() {
             if (piece) {
                 const pieceEl = document.createElement('div');
                 pieceEl.className = `piece ${piece.color}`;
+                
+                // Limpiamos cualquier contenido previo por seguridad
                 pieceEl.innerHTML = '';
                 
-                // 1. Obtenemos el nombre clave de la pieza
+                // 1. Obtenemos el nombre clave de la pieza (ej: 'peon' o 'sargento')
                 const pieceName = piece.promoted ? PIECES[piece.type].promoted : PIECES[piece.type].base;
                 
-                // Diagnóstico en consola si la clave no existe
-                if (!PIECE_IMAGES[piece.color] || !PIECE_IMAGES[piece.color][pieceName]) {
-                    console.error(`Error: No existe clave en PIECE_IMAGES para color: "${piece.color}" y pieceName: "${pieceName}"`);
-                }
-
                 // 2. Creamos el elemento de imagen
                 const img = document.createElement('img');
                 
-                // 3. Asignamos la ruta
-                const imagePath = PIECE_IMAGES[piece.color] ? PIECE_IMAGES[piece.color][pieceName] : '';
-                img.src = imagePath;
+                // 3. Asignamos la ruta usando el diccionario PIECE_IMAGES
+                img.src = PIECE_IMAGES[piece.color][pieceName];
                 img.classList.add('piece-image');
-                
-                // En lugar de ocultar la imagen si falla, mostramos en consola la URL exacta que falló
-                img.onerror = function() {
-                    console.error(`Error 404 cargando imagen: ${this.src}`);
-                    // Muestra un borde rojo en la pieza para saber qué casilla está fallando visualmente
-                    this.style.border = '1px solid red'; 
-                };
+                img.onerror = function() { this.style.display='none'; };
                 
                 // 4. Agregamos la imagen al contenedor
                 pieceEl.appendChild(img);
                 
-                // Estrellas de experiencia
+                // 2. Dibuja estrellas de experiencia si la pieza no ha promovido y tiene capturas
                 if (!piece.promoted && piece.kills > 0) {
                     const starsContainer = document.createElement('span');
                     starsContainer.className = 'stars-badge';
+                    
+                    // Genera '★' si kills === 1, o '★★' si kills === 2
                     starsContainer.innerText = '★'.repeat(piece.kills);
                     pieceEl.appendChild(starsContainer);
                 }
@@ -634,8 +626,8 @@ function switchTurn() {
     if (gameMode === 'pvc' && turn === 'black' && turn !== 'none') {
         cpuThinking = true;
         updateUI();
-        setTimeout(() => {
-            const cpu = new ImperialCPU(3); // Dificultad 2 o 3, (4 máximo procesará muy lento)
+        setTimeout(function() {
+            const cpu = createCPU(window.cpuDifficulty || 'medio');
             const move = cpu.getBestMove(board, 'black');
             if (move) {
                 executeMove(move.from.r, move.from.c, move.to.r, move.to.c);
@@ -656,11 +648,15 @@ function switchTurn() {
 function updateUI() {
     const turnText = document.getElementById('turn-text');
     const turnColor = document.getElementById('turn-indicator-color');
-    if (!turnText || !turnColor) return;
-    turnText.textContent = turn === 'none' ? 'Fin' : (turn === 'white' ? 'Blancas' : 'Negras');
-    turnColor.className = `w-4 h-4 rounded-full border border-gray-400 ${turn === 'white' ? 'bg-white' : (turn === 'black' ? 'bg-[#111]' : 'bg-red-500')}`;
-    document.getElementById('white-captures').textContent = capturedPawns.white;
-    document.getElementById('black-captures').textContent = capturedPawns.black;
+    const whiteCaps = document.getElementById('white-captures');
+    const blackCaps = document.getElementById('black-captures');
+
+    if (turnText) turnText.textContent = turn === 'none' ? 'Fin' : (turn === 'white' ? 'Blancas' : 'Negras');
+    if (turnColor) {
+        turnColor.className = 'w-4 h-4 rounded-full border border-gray-400 ' + (turn === 'white' ? 'bg-white' : (turn === 'black' ? 'bg-[#111]' : 'bg-red-500'));
+    }
+    if (whiteCaps) whiteCaps.textContent = capturedPawns.white;
+    if (blackCaps) blackCaps.textContent = capturedPawns.black;
 }
 
 function showMessage(text) {
@@ -723,5 +719,3 @@ function updateHistoryUI(notation) {
     });
     listEl.scrollTop = listEl.scrollHeight;
 }
-
-resetGame();
