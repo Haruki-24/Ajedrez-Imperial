@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Imperial - Ajedrez 10x10</title>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-K5EXQV41H4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-K5EXQV41H4');
+    </script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles/styles.css" />
+    <link rel="stylesheet" href="styles-editor.css" />
+
+<base target="_blank">
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row items-start justify-center p-2 lg:p-6 gap-4 bg-[#1e1e1e]">
+
+
+    <!-- PANEL IZQUIERDO: Controles del Editor      -->
+
+    <aside class="w-full lg:w-80 flex flex-col gap-3 no-scrollbar shrink-0">
+
+        <!-- Header -->
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
+            <div class="flex items-center justify-between mb-2">
+                <h1 class="text-xl font-bold text-white">Editor Imperial</h1>
+                <span id="mode-badge" class="mode-badge bg-yellow-600/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-600/30">Edicion</span>
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed">
+                Herramienta para probar posiciones, entrenar movimientos y generar tutoriales. 
+                El tablero inicia vacio.
+            </p>
+        </div>
+
+        <!-- Estado del Juego -->
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
+            <div class="flex items-center justify-between bg-[#302e2b] p-2.5 rounded mb-3">
+                <span class="text-gray-300 font-semibold text-sm">Turno:</span>
+                <div class="flex items-center gap-2">
+                    <div id="turn-indicator-color" class="w-3.5 h-3.5 rounded-full bg-white border border-gray-400"></div>
+                    <span id="turn-text" class="text-white font-bold">Blancas</span>
+                </div>
+            </div>
+
+            <!-- Botones principales de modo -->
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="btn-play" onclick="startPlayMode()" class="bg-[#81b64c] hover:bg-[#8bc253] text-white font-bold py-2.5 px-3 rounded shadow transition text-sm flex items-center justify-center gap-1.5">
+                    <span>▶</span> Jugar
+                </button>
+                <button id="btn-stop" onclick="stopPlayMode()" class="bg-red-800/60 hover:bg-red-700/60 text-white font-bold py-2.5 px-3 rounded shadow transition text-sm hidden flex items-center justify-center gap-1.5">
+                    <span>■</span> Detener
+                </button>
+                <button id="btn-edit" onclick="setEditMode()" class="bg-[#4b4843] hover:bg-[#5c5852] text-white font-bold py-2.5 px-3 rounded shadow transition text-sm hidden flex items-center justify-center gap-1.5">
+                    <span>✏️</span> Editar
+                </button>
+            </div>
+
+            <div id="game-message" class="text-xs text-center text-yellow-400 font-semibold min-h-[28px] flex items-center justify-center px-2">
+                Modo Edicion activo. Coloca piezas en el tablero.
+            </div>
+        </div>
+
+ 
+        <!-- PANEL DE EDICION (visible solo en modo edit) -->
+
+        <div id="editor-controls" class="bg-[#262421] p-4 rounded-lg shadow-xl flex flex-col gap-3">
+
+            <!-- Selector de color para la paleta -->
+            <div class="flex items-center justify-between">
+                <span class="editor-section-title mb-0">Color de pieza</span>
+                <div class="flex bg-[#302e2b] rounded p-0.5">
+                    <button onclick="setEditorColor('white')" id="color-white" class="px-3 py-1 rounded text-xs font-bold bg-white text-[#262421] transition">Blancas</button>
+                    <button onclick="setEditorColor('black')" id="color-black" class="px-3 py-1 rounded text-xs font-bold text-gray-400 hover:text-white transition">Negras</button>
+                </div>
+            </div>
+
+            <!-- Paleta de piezas -->
+            <div>
+                <span class="editor-section-title">Paleta de piezas</span>
+                <div id="editor-palette" class="grid grid-cols-5 gap-1.5 bg-[#302e2b] p-2 rounded">
+                    <!-- Se rellena por JavaScript -->
+                </div>
+                <p class="text-[10px] text-gray-500 text-center mt-1.5">Clic en una pieza, luego clic en el tablero para colocarla.</p>
+            </div>
+
+            <!-- Herramientas -->
+            <div class="editor-section">
+                <span class="editor-section-title">Herramientas</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setEditorTool('eraser')" id="tool-eraser" class="tool-btn bg-[#302e2b] hover:bg-[#3e3c39] text-gray-300 py-2 rounded text-xs font-semibold border border-transparent flex items-center justify-center gap-1.5">
+                        🧹 Borrar
+                    </button>
+                    <button onclick="clearBoardEditor()" class="bg-red-900/40 hover:bg-red-800/50 text-red-200 py-2 rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                        🗑️ Vaciar todo
+                    </button>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-1.5">Clic derecho en una casilla tambien elimina la pieza.</p>
+            </div>
+
+            <!-- Cargar posiciones -->
+            <div class="editor-section">
+                <span class="editor-section-title">Posiciones rapidas</span>
+                <div class="flex flex-col gap-2">
+                    <button onclick="loadInitialPosition()" class="w-full bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        ♟️ Posicion inicial
+                    </button>
+                    <button onclick="clearBoardEditor()" class="w-full bg-[#302e2b] hover:bg-[#3e3c39] text-gray-300 py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        ⬜ Tablero vacio
+                    </button>
+                </div>
+            </div>
+
+            <!-- Generador aleatorio -->
+            <div class="editor-section">
+                <span class="editor-section-title">Generador aleatorio</span>
+                <div class="bg-[#302e2b] p-2.5 rounded space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-gray-400">Tus piezas:</label>
+                        <input id="rand-player-count" type="number" min="1" max="20" value="8" class="w-14 bg-[#262421] text-white text-xs text-center py-1 rounded border border-gray-600 focus:border-[#81b64c] outline-none">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-gray-400">Piezas rival:</label>
+                        <input id="rand-opponent-count" type="number" min="1" max="20" value="8" class="w-14 bg-[#262421] text-white text-xs text-center py-1 rounded border border-gray-600 focus:border-[#81b64c] outline-none">
+                    </div>
+                    <button onclick="generateRandomPosition()" class="w-full mt-1 bg-indigo-900/50 hover:bg-indigo-800/60 text-indigo-200 py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        🎲 Generar posicion
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- PANEL DE JUEGO (visible solo en modo play)   -->
+
+        <div id="play-controls" class="bg-[#262421] p-4 rounded-lg shadow-xl hidden flex-col gap-3">
+            <div class="editor-section border-none pt-0 mt-0">
+                <span class="editor-section-title">Controles de partida</span>
+                <div class="flex gap-2">
+                    <button onclick="undoMove()" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        ↩ Deshacer
+                    </button>
+                    <button onclick="forceSwitchTurn()" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        🔄 Cambiar turno
+                    </button>
+                </div>
+            </div>
+            <div class="bg-[#302e2b] p-2.5 rounded">
+                <p class="text-[11px] text-gray-400 leading-relaxed">
+                    <strong class="text-gray-300">Modo Juego activo.</strong><br>
+                    Las piezas se mueven respetando las reglas del Ajedrez Imperial. El turno alterna automaticamente.
+                </p>
+            </div>
+        </div>
+
+    </aside>
+
+
+    <!-- Tablero 10x10 con coordenadas         -->
+
+    <main class="flex-1 w-full flex justify-center items-start pt-2">
+        <div class="flex items-center gap-3 sm:gap-5">
+            <!-- OESTE -->
+            <div class="text-gray-500 font-bold tracking-[0.3em] text-base sm:text-lg" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                OESTE
+            </div>
+
+            <div class="flex flex-col">
+                <!-- NORTE -->
+                <div class="flex mb-3">
+                    <div class="w-[34px]"></div>
+                    <div class="w-[500px] sm:w-[600px] text-center text-gray-500 font-bold tracking-[0.3em] text-base sm:text-lg">
+                        NORTE
+                    </div>
+                </div>
+
+                <!-- Tablero + Coordenadas -->
+                <div class="flex">
+                    <div id="y-coords" class="sidebar-coords"></div>
+                    <div class="w-full">
+                        <div id="board" class="board-container shadow-2xl"></div>
+                        <div id="x-coords" class="bottom-coords"></div>
+                    </div>
+                </div>
+
+                <!-- SUR -->
+                <div class="flex mt-5">
+                    <div class="w-[34px]"></div>
+                    <div class="w-[500px] sm:w-[600px] text-center text-gray-500 font-bold tracking-[0.3em] text-base sm:text-lg">
+                        SUR
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESTE -->
+            <div class="text-gray-500 font-bold tracking-[0.3em] text-base sm:text-lg" style="writing-mode: vertical-rl;">
+                ESTE
+            </div>
+        </div>
+    </main>
+
+  
+    <!-- PANEL DERECHO: Leyenda e Historial          -->
+
+    <aside class="w-full lg:w-72 flex flex-col gap-3 no-scrollbar shrink-0">
+
+        <!-- Leyenda de piezas -->
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl text-sm">
+            <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-3">Leyenda de Piezas</h3>
+            <div class="grid grid-cols-2 gap-2 text-gray-300">
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="../assets/icons/b-peon-b.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="../assets/icons/b-sargento.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Peon / Sargento</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="../assets/icons/b-vigia.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="../assets/icons/b-torre.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Vigia / Torre</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="../assets/icons/b-caballo.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="../assets/icons/b-caballero.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Caballo / C. Imperial</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="../assets/icons/b-paladin.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="../assets/icons/b-general-real.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Paladin / G. Imperial</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="../assets/icons/b-escudero.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="../assets/icons/b-alfil.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Escudero / Alfil</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="../assets/icons/b-reina.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="../assets/icons/b-emperatriz.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Reina / Emperatriz</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded col-span-2 flex items-center justify-center gap-2">
+                    <img src="../assets/icons/b-emperador.png" class="w-5 h-5"><span class="text-white text-xs font-semibold">Emperador</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de movimientos -->
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider">Historial de Jugadas</h3>
+                <button onclick="clearHistory()" class="text-[10px] text-gray-500 hover:text-red-400 transition">Limpiar</button>
+            </div>
+            <div id="move-history-list" class="h-48 overflow-y-auto bg-[#302e2b] rounded p-2 text-sm text-gray-300 font-mono space-y-1">
+                <div class="text-gray-500 text-xs italic text-center py-4">No hay movimientos registrados</div>
+            </div>
+        </div>
+
+        <!-- Info de exportacion -->
+        <div class="bg-[#262421] p-3 rounded-lg shadow-xl">
+            <p class="text-[10px] text-gray-500 leading-relaxed">
+                <strong class="text-gray-400">Tip:</strong> Abre la consola del navegador (F12) para ver el log JSON de movimientos exportable.
+            </p>
+        </div>
+
+    </aside>
+
+    <!-- Scripts -->
+    <script src="../jscripts/game.js"></script>
+    <script src="../jscripts/cpu.js"></script>
+    <script src="editor.js"></script>
+
+
+</body>
+</html>

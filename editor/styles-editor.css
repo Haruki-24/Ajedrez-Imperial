@@ -1,0 +1,45 @@
+        /* Estilos específicos del editor */
+        .palette-piece {
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .palette-piece:hover {
+            transform: scale(1.1);
+            border-color: #81b64c;
+            background-color: #3e3c39;
+        }
+        .palette-piece.selected {
+            border-color: #eab308;
+            background-color: #4a4535;
+            box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+        }
+        .tool-btn {
+            transition: all 0.15s ease;
+        }
+        .tool-btn.active {
+            border-color: #81b64c;
+            background-color: #3e4a2f;
+        }
+        .mode-badge {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .editor-section {
+            border-top: 1px solid #3e3c39;
+            padding-top: 0.75rem;
+            margin-top: 0.75rem;
+        }
+        .editor-section-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: #9ca3af;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            opacity: 1;
+        }
