@@ -20,7 +20,7 @@ Puedes probar la versión alfa directamente en tu navegador (compatible con PC y
 
 Para consultar las reglas oficiales, la jerarquía militar completa de las piezas y la tabla de evoluciones por experiencia, accede a la documentación oficial:
 
-* 📄 **[Documentación y Reglamento Oficial](https://github.com/Haruki-24/Ajedrez-Imperial/blob/main/assets/docs/Reglamento%20Ajedrez%20imperial.pdf)**
+* 📄 **[Documentación y Reglamento Oficial](https://github.com/Haruki-24/Ajedrez-Imperial/blob/main/assets/docs/reglamento_actualizado.pdf)**
 * 🧪 **Tablero de Práctica:** Incluido en la demo web para explorar el alcance y movimiento de cada pieza antes de jugar. (en desarrollo)
 
 ---
@@ -32,7 +32,7 @@ El proyecto está construido desde cero con tecnologías web estándar:
 * **Frontend:** HTML5, CSS3 (Tailwind CSS) y JavaScript.
 * **Motor CPU:** Implementación propia basada en el algoritmo **Minimax** con funciones de evaluación estática del tablero, análisis de movilidad y ponderación de capturas clave en JS.
 * **Modos de juego:**
-  * Modo Práctica (en desarrollo)
+  * Modo Editor
   * Modo Humano vs. Humano
   * Modo Humano vs. CPU Minimax (`cpu.js`)
 
