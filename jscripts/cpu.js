@@ -1,7 +1,6 @@
-// ============================================================
+
 // CPU.JS - Motor Imperial con Iterative Deepening + Partial Results
-// ============================================================
-// Depende de: game.js (debe cargarse ANTES que este archivo)
+// game.js (debe cargarse ANTES que este archivo)
 
 class ImperialCPU {
     constructor(config = {}) {
@@ -10,15 +9,25 @@ class ImperialCPU {
         this.randomness = config.randomness !== undefined ? config.randomness : 0.12;
 
         this.values = {
-            pawn: 100, sargento: 280, knight: 300, caballero: 550,
-            paladin: 350, general_real: 600, bishop: 200, alfil: 330,
-            rook: 450, torre: 500, queen: 300, emperatriz: 900, king: 10000
+            pawn: 100, 
+            sargento: 280, 
+            knight: 350, 
+            caballero: 550,
+            paladin: 450, 
+            general_real: 700, 
+            bishop: 250, 
+            alfil: 330,
+            rook: 400, 
+            torre: 500, 
+            queen: 550, 
+            emperatriz: 1000, 
+            king: 10000
         };
     }
 
-    // ============================================================
+ 
     // ENTRADA PRINCIPAL
-    // ============================================================
+ 
     getBestMove(gameBoard, color) {
         const originalBoard = board;
         board = gameBoard.map(function(row) {
@@ -36,7 +45,7 @@ class ImperialCPU {
                 break;
             }
 
-            // Si YA nos pasamos del timeLimit, no intentamos mas
+            // verificaicon de timeLimit, para no seguir intentando
             const elapsedBefore = Date.now() - startTime;
             if (elapsedBefore > this.timeLimit) {
                 console.log('[CPU] Tiempo total agotado (' + elapsedBefore + 'ms > ' + this.timeLimit + 'ms). ' +
@@ -44,11 +53,11 @@ class ImperialCPU {
                 break;
             }
 
-            // SIEMPRE intentamos esta profundidad. minimaxRoot se encarga de cortar por tiempo internamente.
+            // Intentar con profundidad establecida. minimaxRoot se encarga de cortar por tiempo internamente.
             const result = this.minimaxRoot(color, depth, startTime);
 
             if (result && result.move) {
-                // Guardamos este resultado (siempre es mejor que el anterior porque es depth mayor)
+                // Guardamos este resultado (hipotesis: siempre es mejor que el anterior porque es depth mayor)
                 bestMove = result.move;
                 bestPartialInfo = result;
                 bestPartialInfo.depth = depth;
@@ -103,9 +112,9 @@ class ImperialCPU {
         return base * Math.pow(6, depth - 1);
     }
 
-    // ============================================================
+
     // MINIMAX ROOT - con partial results y aleatoriedad
-    // ============================================================
+
     minimaxRoot(color, depth, startTime) {
         const moves = this.getAllLegalMoves(color);
         if (moves.length === 0) return null;
@@ -163,7 +172,7 @@ class ImperialCPU {
 
     // ============================================================
     // MINIMAX con Poda Alfa-Beta
-    // ============================================================
+
     minimax(depth, alpha, beta, isMaximizing, cpuColor, startTime) {
         const currentColor = isMaximizing ? cpuColor : (cpuColor === 'white' ? 'black' : 'white');
 
@@ -214,9 +223,9 @@ class ImperialCPU {
         }
     }
 
-    // ============================================================
+
     // MOVIMIENTOS LEGALES
-    // ============================================================
+
     getAllLegalMoves(color) {
         const moves = [];
         for (let r = 0; r < BOARD_SIZE; r++) {
@@ -247,9 +256,9 @@ class ImperialCPU {
         return moves;
     }
 
-    // ============================================================
+
     // SIMULACION
-    // ============================================================
+
     makeMove(move) {
         const piece = board[move.from.r][move.from.c];
         const target = board[move.to.r][move.to.c];
@@ -302,9 +311,9 @@ class ImperialCPU {
         capturedPawns = state.capturedPawns;
     }
 
-    // ============================================================
+   
     // EVALUACION
-    // ============================================================
+
     evaluate(forColor) {
         let score = 0;
         const opponent = forColor === 'white' ? 'black' : 'white';
@@ -349,9 +358,9 @@ class ImperialCPU {
     }
 }
 
-// ============================================================
+
 // PRESETS DE DIFICULTAD (ajustados por el usuario)
-// ============================================================
+
 const CPU_DIFFICULTY = {
     facil:    { timeLimit: 300,  depthLimit: 2, randomness: 0.35 },
     medio:    { timeLimit: 600,  depthLimit: 3, randomness: 0.15 },
