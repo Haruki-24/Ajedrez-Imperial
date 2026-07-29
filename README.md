@@ -1,10 +1,10 @@
 
 
 # ♔ Ajedrez Imperial (Versión Alfa - Demo)
-<img align="right" src="assets/img/portada-ajedrez-imperial.png" alt="Tablero 10x10 Ajedrez Imperial" width="500" style="border-radius: 8px;">
-
 ![Estado del Proyecto](https://img.shields.io/badge/Estado-Alpha_v0.1-orange)
 ![Licencia](https://img.shields.io/badge/Licencia-Propiedad_Intelectual_Reservada-blue)
+
+<img align="right" src="assets/img/portada-ajedrez-imperial.png" alt="Tablero 10x10 Ajedrez Imperial" width="500" style="border-radius: 8px;">
 
 **Ajedrez Imperial** es una variante táctica y estratégica de ajedrez sobre un tablero extendido de 10x10. Fusiona la elegancia del ajedrez convencional con mecánicas avanzadas inspiradas en el shogi, que presentan un nuevo paradigma en el arte de la guerra sobre el tablero.
 
