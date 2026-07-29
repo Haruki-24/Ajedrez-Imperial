@@ -30,6 +30,7 @@ class ImperialCPU {
  
     getBestMove(gameBoard, color) {
         const originalBoard = board;
+        // Clonar tablero para simulacion
         board = gameBoard.map(function(row) {
             return row.map(function(p) { return p ? Object.assign({}, p) : null; });
         });
@@ -170,7 +171,6 @@ class ImperialCPU {
         };
     }
 
-    // ============================================================
     // MINIMAX con Poda Alfa-Beta
 
     minimax(depth, alpha, beta, isMaximizing, cpuColor, startTime) {
@@ -276,6 +276,7 @@ class ImperialCPU {
         board[move.to.r][move.to.c] = piece;
         board[move.from.r][move.from.c] = null;
 
+        // Captura de peon -> contadores
         if (target && target.type === 'pawn') {
             capturedPawns[piece.color]++;
             if ((piece.type === 'bishop' || piece.type === 'rook') && !piece.promoted) {
@@ -287,10 +288,12 @@ class ImperialCPU {
             }
         }
 
+        // Reina -> Emperatriz
         if (!piece.promoted && piece.type === 'queen' && target) {
             piece.promoted = true;
         }
 
+        // Promocion por territorio (ultimas 2 filas)
         if (!piece.promoted && (piece.type === 'pawn' || piece.type === 'knight' || piece.type === 'paladin')) {
             if ((piece.color === 'white' && move.to.r <= 1) || (piece.color === 'black' && move.to.r >= 8)) {
                 piece.promoted = true;
@@ -325,24 +328,29 @@ class ImperialCPU {
 
                 let value = this.values[p.type] || 0;
 
+                // Bono por pieza promocionada
                 if (p.promoted) {
                     if (p.type === 'pawn') value += 180;
                     else value += 150;
                 }
 
+                // Bono centro (filas 3-6, cols 3-6)
                 if (r >= 3 && r <= 6 && c >= 3 && c <= 6) {
                     value += 15;
                 }
 
+                // Bono avance peones
                 if (p.type === 'pawn') {
                     if (p.color === 'white') value += (9 - r) * 5;
                     else value += r * 5;
                 }
 
+                // Bono caballo/paladin cerca del centro en apertura
                 if ((p.type === 'knight' || p.type === 'paladin') && !p.promoted) {
                     if (r >= 3 && r <= 6 && c >= 3 && c <= 6) value += 10;
                 }
 
+                // Penalizacion por pieza indefensa amenazada (simplificada)
                 if (p.color === forColor) {
                     score += value;
                 } else {
@@ -351,6 +359,7 @@ class ImperialCPU {
             }
         }
 
+        // Bono por capturas de peon acumuladas (caza para evolucion)
         score += (capturedPawns[forColor] || 0) * 30;
         score -= (capturedPawns[opponent] || 0) * 30;
 
