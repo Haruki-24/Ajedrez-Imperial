@@ -1,11 +1,17 @@
+
+
 # ♔ Ajedrez Imperial (Versión Alfa - Demo)
+<img align="right" src="assets/img/portada-ajedrez-imperial.png" alt="Tablero 10x10 Ajedrez Imperial" width="500" style="border-radius: 8px;">
 
 ![Estado del Proyecto](https://img.shields.io/badge/Estado-Alpha_v0.1-orange)
 ![Licencia](https://img.shields.io/badge/Licencia-Propiedad_Intelectual_Reservada-blue)
 
-**Ajedrez Imperial** es una variante táctica y estratégica de ajedrez sobre un tablero extendido de 10x10. Fusiona la elegancia del ajedrez convencional con mecánicas avanzadas inspiradas en el shogi, como la evolución progresiva de piezas por capturas o control territorial y una arquitectura defensiva basada en la construcción de fortalezas y castillos.
+**Ajedrez Imperial** es una variante táctica y estratégica de ajedrez sobre un tablero extendido de 10x10. Fusiona la elegancia del ajedrez convencional con mecánicas avanzadas inspiradas en el shogi, que presentan un nuevo paradigma en el arte de la guerra sobre el tablero.
+
+El Ajedrez Imperial no es un simple juego de capturas; es un sistema de evolución constante, donde cada pieza tiene el potencial de transformarse en una versión más poderosa de sí misma. No se gana con ataques relámpago, sino con una gestión sofisticada de recursos, una planificación meticulosa de la evolución y una arquitectura defensiva que convierta tu retaguardia en una fortaleza impenetrable.
 
 Esta versión demo web interactiva incluye un entorno de prueba de movimientos, un *Editor de Juego* para la creación de escenarios, modo multijugador local y un motor de Inteligencia Artificial (CPU) optimizado en JavaScript.
+<br clear="right" />
 
 ## ✨ Novedades Recientes
 
