@@ -70,6 +70,13 @@ function resetGame() {
     moveHistory = [];
     moveHistoryText = [];
     cpuThinking = false;
+
+    // --- Habilitar selector de dificultad ---
+    const cpuSelect = document.getElementById('cpu-level');
+    if (cpuSelect) {
+        cpuSelect.disabled = false;
+    }
+
     updateUI();
     renderBoard();
     updateHistoryUI();
@@ -493,6 +500,13 @@ function getValidMoves(r, c, ignoreCastling = false) {
 function executeMove(sr, sc, tr, tc) {
     const piece = board[sr][sc];
     if (!piece) return;
+
+    // --- Bloquear selector de dificultad despues del primer movimiento ---
+    const cpuSelect = document.getElementById('cpu-level');
+    if (cpuSelect && !cpuSelect.disabled) {
+        cpuSelect.disabled = true;
+    }
+
     const target = board[tr][tc];
     let msg = "";
 
