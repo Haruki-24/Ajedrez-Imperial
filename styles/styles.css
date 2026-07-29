@@ -187,7 +187,7 @@ body {
 
 
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .game-wrapper {
     width: 100%;
     grid-template-columns: auto 1fr; /* el tablero ocupa el resto */
