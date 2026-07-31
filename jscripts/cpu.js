@@ -19,8 +19,8 @@ class ImperialCPU {
             alfil: 330,
             rook: 400, 
             torre: 500, 
-            queen: 550, 
-            emperatriz: 1000, 
+            queen: 600, 
+            emperatriz: 2000, 
             king: 10000
         };
     }
@@ -350,6 +350,12 @@ class ImperialCPU {
                     if (r >= 3 && r <= 6 && c >= 3 && c <= 6) value += 10;
                 }
 
+                // Bono especial para Reina base: valor potencial a Emperatriz
+                if (p.type === 'queen' && !p.promoted) {
+                    const threatBonus = this.getQueenThreatBonus(r, c, p.color);
+                    value += threatBonus;
+                }
+
                 // Penalizacion por pieza indefensa amenazada (simplificada)
                 if (p.color === forColor) {
                     score += value;
@@ -364,6 +370,94 @@ class ImperialCPU {
         score -= (capturedPawns[opponent] || 0) * 30;
 
         return score;
+    }
+
+   
+    // Bono Reina por valor potencial a Emperatriz
+
+    // La Reina puede ascender con CUALQUIER captura.
+    // Si tiene piezas enemigas alineadas, su valor se acerca al de Emperatriz.
+    getQueenThreatBonus(r, c, color) {
+        const opponent = color === 'white' ? 'black' : 'white';
+        let safeCaptureBonus = 0;
+        let escapeBonus = 0;
+
+        const dirs = [
+            [-1, 0], [1, 0], [0, -1], [0, 1],
+            [-1, -1], [-1, 1], [1, -1], [1, 1]
+        ];
+
+        // 1. Escanear amenazas de captura SEGURA (piezas enemigas alineadas no defendidas)
+        // Estas son capturas limpias: la Reina captura y sobrevive.
+        for (let i = 0; i < dirs.length; i++) {
+            const d = dirs[i];
+            let dist = 1;
+            while (dist < BOARD_SIZE) {
+                const tr = r + d[0] * dist;
+                const tc = c + d[1] * dist;
+                if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE) break;
+
+                const p = board[tr][tc];
+                if (p) {
+                    if (p.color === opponent) {
+                        const targetIsDefended = isSquareAttacked(tr, tc, opponent);
+                        const targetValue = this.values[p.type] || 0;
+
+                        if (!targetIsDefended) {
+                            // CAPTURA LIMPIA: Reina captura y sobrevive -> ascenso a Emperatriz
+                            safeCaptureBonus += 500 + targetValue * 0.5;
+                        } else if (p.type === 'king') {
+                            // La Reina puede capturar al Emperador (jaque mate)
+                            safeCaptureBonus += 8000;
+                        }
+                        // NOTA: No se penaliza capturas a piezas defendidas.
+                        // El minimax con suficiente profundidad ya detecta si el sacrificio
+                        // lleva a jaque mate (ej: Reina x Torre -> Rey recaptura -> Torre#).
+                        // Si la profundidad no alcanza a ver el mate, es preferible no arriesgar.
+                    }
+                    break;
+                }
+                dist++;
+            }
+        }
+
+        // 2. Verificar si la propia Reina esta amenazada
+        const queenIsAttacked = isSquareAttacked(r, c, opponent);
+        if (queenIsAttacked) {
+            let safeSquares = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = r + dr, nc = c + dc;
+                    if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
+                    if (!board[nr][nc] && !isSquareAttacked(nr, nc, opponent)) {
+                        safeSquares++;
+                    }
+                }
+            }
+
+            if (safeSquares === 0) {
+                // JAQUE sin escapatoria: penalizacion masiva para que minimax la evite
+                escapeBonus -= 3000;
+            } else {
+                // Amenazada pero puede escapar: penalizacion leve para incentivar huida
+                escapeBonus -= 200;
+            }
+        } else {
+            // Reina segura: bono por posicion solida
+            escapeBonus += 50;
+        }
+
+        // 3. Bono por actividad
+        const p = board[r][c];
+        if (p && p.hasMoved) {
+            escapeBonus += 40;
+        }
+
+        // El bono de captura segura nunca superara el valor de Emperatriz
+        safeCaptureBonus = Math.min(safeCaptureBonus, 1300);
+
+        return safeCaptureBonus + escapeBonus;
     }
 }
 
