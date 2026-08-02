@@ -1,66 +1,92 @@
-const BOARD_SIZE = 10;
+// game.js — Motor de Reglas Ajedrez Imperial 10x10
+// Arquitectura ES6. Funciones puras (*State) reutilizables por cpu.js.
+// OPTIMIZADO: lastMoveState fluye por toda la cadena, isSquareAttackedState
+// invertido (direccional), MOVEMENT_VECTORS integrado, en passant corregido.
+
+import { renderBoard, updateUI, showMessage } from './render.js';
+import { TRANSLATIONS, getCurrentLang, updateTurnText } from './translate.js';
+import {
+    BOARD_SIZE, PIECES, PROMOTION_ZONE, PAWN_KILLERS,
+    ZONE_PROMOTABLES, KILLS_TO_PROMOTE, STARTING_BACK_ROW,
+    MOVEMENT_VECTORS, getPieceSymbol, getSquareNotation
+} from './constants.js';
+
+// ============================================================
+// HELPER DE TRADUCCIÓN
+// ============================================================
+
+function msg(key, ...args) {
+    const lang = getCurrentLang();
+    const t = TRANSLATIONS[lang]?.messages;
+    if (!t) return key;
+    const val = t[key];
+    return typeof val === 'function' ? val(...args) : val;
+}
+
+// ============================================================
+// ESTADO GLOBAL DEL JUEGO (UI únicamente)
+// ============================================================
 let board = [];
 let turn = 'white';
 let selectedPiece = null;
 let validMoves = [];
 let lastMove = null;
-let moveHistoryText = [];
-let moveHistory = [];
+let moveHistory = [];       // stack de estados para undo
+let moveHistoryText = [];   // notaciones para UI
 let capturedPawns = { white: 0, black: 0 };
-let gameMode = 'pvp';
+let gameMode = 'pvc';
 let cpuThinking = false;
-let showCoordsInternal = false;
 
-const PIECES = {
-    'pawn': { base: 'peon', promoted: 'sargento' },
-    'rook': { base: 'vigia', promoted: 'torre' },
-    'knight': { base: 'caballo', promoted: 'caballero' },
-    'bishop': { base: 'escudero', promoted: 'alfil' },
-    'paladin': { base: 'paladin', promoted: 'general_real' },
-    'queen': { base: 'reina', promoted: 'emperatriz' },
-    'king': { base: 'emperador', promoted: 'emperador' }
-};
+// ============================================================
+// 1. INICIALIZACIÓN
+// ============================================================
 
-const PIECE_IMAGES = {
-    white: {
-        alfil: 'assets/icons/b-alfil.png',
-        caballero: 'assets/icons/b-caballero.png',
-        caballo: 'assets/icons/b-caballo.png',
-        emperador: 'assets/icons/b-emperador.png',
-        emperatriz: 'assets/icons/b-emperatriz.png',
-        escudero: 'assets/icons/b-escudero.png',
-        general_real: 'assets/icons/b-general-real.png',
-        paladin: 'assets/icons/b-paladin.png',
-        peon: 'assets/icons/b-peon-b.png',
-        reina: 'assets/icons/b-reina.png',
-        sargento: 'assets/icons/b-sargento.png',
-        torre: 'assets/icons/b-torre.png',
-        vigia: 'assets/icons/b-vigia.png'
-    },
-    black: {
-        alfil: 'assets/icons/n-alfil.png',
-        caballero: 'assets/icons/n-caballero.png',
-        caballo: 'assets/icons/n-caballo.png',
-        emperador: 'assets/icons/n-emperador.png',
-        emperatriz: 'assets/icons/n-emperatriz.png',
-        escudero: 'assets/icons/n-escudero.png',
-        general_real: 'assets/icons/n-general-real.png',
-        paladin: 'assets/icons/n-paladin.png',
-        peon: 'assets/icons/n-peon.png',
-        reina: 'assets/icons/n-reina.png',
-        sargento: 'assets/icons/n-sargento.png',
-        torre: 'assets/icons/n-torre.png',
-        vigia: 'assets/icons/n-vigia.png'
+function initBoard() {
+    board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+    for (let c = 0; c < BOARD_SIZE; c++) {
+        board[0][c] = createPiece(STARTING_BACK_ROW[c], 'black');
+        board[1][c] = createPiece('pawn', 'black');
+        board[8][c] = createPiece('pawn', 'white');
+        board[9][c] = createPiece(STARTING_BACK_ROW[c], 'white');
     }
-};
-
-function changeGameMode(mode) {
-    gameMode = mode;
-    resetGame();
-    showMessage(mode === 'pvc' ? 'Modo: Jugador (Blancas) vs CPU (Negras)' : 'Modo: 2 Jugadores');
 }
 
-function resetGame() {
+function createPiece(type, color) {
+    return { type, color, promoted: false, kills: 0, hasMoved: false };
+}
+
+export function getGameState() {
+    const kingPositions = { white: null, black: null };
+    for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            const p = board[r][c];
+            if (p && p.type === 'king') {
+                kingPositions[p.color] = { r, c };
+            }
+        }
+    }
+    return {
+        board,
+        selectedPiece,
+        validMoves,
+        lastMove,
+        turn,
+        kingPositions,
+        isCheck: isKingInCheckState(board, turn)
+    };
+}
+
+function afterMove() {
+    renderBoard(getGameState());
+    updateUI(turn, capturedPawns);
+    updateTurnText(turn);
+}
+
+// ============================================================
+// 2. CONTROL DE PARTIDA
+// ============================================================
+
+export function resetGame() {
     initBoard();
     turn = 'white';
     selectedPiece = null;
@@ -71,148 +97,24 @@ function resetGame() {
     moveHistoryText = [];
     cpuThinking = false;
 
-    // --- Habilitar selector de dificultad ---
     const cpuSelect = document.getElementById('cpu-level');
-    if (cpuSelect) {
-        cpuSelect.disabled = false;
-    }
+    if (cpuSelect) cpuSelect.disabled = false;
 
-    updateUI();
-    renderBoard();
+    afterMove();
     updateHistoryUI();
-    showMessage("Partida reiniciada!");
+    showMessage(msg('gameStarted'));
 }
 
-function initBoard() {
-    board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
-    const backRow = ['rook', 'knight', 'bishop', 'paladin', 'queen', 'king', 'paladin', 'bishop', 'knight', 'rook'];
-    for (let c = 0; c < BOARD_SIZE; c++) {
-        board[0][c] = { type: backRow[c], color: 'black', promoted: false, kills: 0, hasMoved: false };
-        board[1][c] = { type: 'pawn', color: 'black', promoted: false, kills: 0, hasMoved: false };
-        board[8][c] = { type: 'pawn', color: 'white', promoted: false, kills: 0, hasMoved: false };
-        board[9][c] = { type: backRow[c], color: 'white', promoted: false, kills: 0, hasMoved: false };
-    }
+export function changeGameMode(mode) {
+    gameMode = mode;
+    resetGame();
 }
 
-function renderBoard() {
-    const boardEl = document.getElementById('board');
-    boardEl.innerHTML = '';
-    let kingPos = { white: null, black: null };
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            if (board[r][c]?.type === 'king') kingPos[board[r][c].color] = {r, c};
-        }
-    }
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-           
-            const square = document.createElement('div');
-            square.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
-            if (showCoordsInternal) square.classList.add('show-coords');
-            
-            // Resaltar selección y último movimiento
-            if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
-                square.classList.add('selected');
-            }
-            if (lastMove && ((lastMove.from.r === r && lastMove.from.c === c) || (lastMove.to.r === r && lastMove.to.c === c))) {
-                square.classList.add('last-move');
-            }
-            
-            // Resaltar jaque
-            if (kingPos.white && r === kingPos.white.r && c === kingPos.white.c && isKingInCheck('white')) {
-                square.classList.add('check');
-            }
-            if (kingPos.black && r === kingPos.black.r && c === kingPos.black.c && isKingInCheck('black')) {
-                square.classList.add('check');
-            }
+// ============================================================
+// 3. INTERACCIÓN CON EL TABLERO
+// ============================================================
 
-            // Renderizar Pieza con Imágenes
-            const piece = board[r][c];
-            if (piece) {
-                const pieceEl = document.createElement('div');
-                pieceEl.className = `piece ${piece.color}`;
-                
-                // Limpiamos cualquier contenido previo por seguridad
-                pieceEl.innerHTML = '';
-                
-                // 1. Obtenemos el nombre clave de la pieza (ej: 'peon' o 'sargento')
-                const pieceName = piece.promoted ? PIECES[piece.type].promoted : PIECES[piece.type].base;
-                
-                // 2. Creamos el elemento de imagen
-                const img = document.createElement('img');
-                
-                // 3. Asignamos la ruta usando el diccionario PIECE_IMAGES
-                img.src = PIECE_IMAGES[piece.color][pieceName];
-                img.classList.add('piece-image');
-                img.onerror = function() { this.style.display='none'; };
-                
-                // 4. Agregamos la imagen al contenedor
-                pieceEl.appendChild(img);
-                
-                // 2. Dibuja estrellas de experiencia si la pieza no ha promovido y tiene capturas
-                if (!piece.promoted && piece.kills > 0) {
-                    const starsContainer = document.createElement('span');
-                    starsContainer.className = 'stars-badge';
-                    
-                    // Genera '★' si kills === 1, o '★★' si kills === 2
-                    starsContainer.innerText = '★'.repeat(piece.kills);
-                    pieceEl.appendChild(starsContainer);
-                }
-                square.appendChild(pieceEl);
-            }
-
-            // Renderizar indicadores de movimiento válido
-            const move = validMoves.find(m => m.r === r && m.c === c);
-            if (move) {
-                const marker = document.createElement('div');
-                marker.className = move.capture ? 'valid-capture-ring' : 'valid-move-dot';
-                square.appendChild(marker);
-            }
-
-            // Coordenada interna opcional
-            const coordLabel = document.createElement('span');
-            coordLabel.className = 'square-coord';
-            coordLabel.innerText = getSquareNotation(r, c);
-            square.appendChild(coordLabel);
-
-            square.onclick = () => handleSquareClick(r, c);
-            boardEl.appendChild(square);
-        }
-    }
-    // Renderizamos las coordenadas externas una vez generado el tablero
-    renderExternalCoords();
-}
-
-// Función para renderizar coordenadas externas
-function renderExternalCoords() {
-    const yContainer = document.getElementById('y-coords');
-    const xContainer = document.getElementById('x-coords');
-    
-    if (!yContainer || !xContainer) return;
-    yContainer.innerHTML = '';
-    xContainer.innerHTML = '';
-    
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        const yLabel = document.createElement('div');
-        yLabel.className = 'coord-y';
-        yLabel.innerText = (r < 5) ? `${5 - r}N` : `${r - 4}S`;
-        yContainer.appendChild(yLabel);
-    }
-    
-    for (let c = 0; c < BOARD_SIZE; c++) {
-        const xLabel = document.createElement('div');
-        xLabel.className = 'coord-x';
-        xLabel.innerText = (c < 5) ? `${5 - c}O` : `${c - 4}E`;
-        xContainer.appendChild(xLabel);
-    }
-}
-
-function toggleCoords() {
-    showCoordsInternal = !showCoordsInternal;
-    renderBoard();
-}
-
-function handleSquareClick(r, c) {
+export function handleSquareClick(r, c) {
     if (cpuThinking || turn === 'none') return;
     if (gameMode === 'pvc' && turn === 'black') return;
 
@@ -223,9 +125,7 @@ function handleSquareClick(r, c) {
         executeMove(selectedPiece.r, selectedPiece.c, r, c);
         selectedPiece = null;
         validMoves = [];
-        if (turn !== 'none') {
-            switchTurn();
-        }
+        if (turn !== 'none') switchTurn();
     } else if (piece && piece.color === turn) {
         selectedPiece = { r, c };
         validMoves = getLegalMoves(r, c);
@@ -233,111 +133,204 @@ function handleSquareClick(r, c) {
         selectedPiece = null;
         validMoves = [];
     }
-    renderBoard();
+    renderBoard(getGameState());
 }
 
-// --- JAQUE Y MOVIMIENTOS LEGALES ---
+// ============================================================
+// 4. EJECUCIÓN DE MOVIMIENTOS
+// ============================================================
 
-function isKingInCheck(color) {
-    let kingR = -1, kingC = -1;
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            if (board[r][c]?.type === 'king' && board[r][c]?.color === color) {
-                kingR = r; kingC = c; break;
-            }
+export function executeMove(sr, sc, tr, tc) {
+    const piece = board[sr][sc];
+    if (!piece) return;
+
+    const cpuSelect = document.getElementById('cpu-level');
+    if (cpuSelect && !cpuSelect.disabled) cpuSelect.disabled = true;
+
+    const target = board[tr][tc];
+    let message = "";
+
+    // Guardar estado para undo
+    const state = {
+        board: board.map(row => row.map(p => p ? { ...p } : null)),
+        turn,
+        capturedPawns: { ...capturedPawns },
+        lastMove: lastMove ? { from: { ...lastMove.from }, to: { ...lastMove.to }, pieceType: lastMove.pieceType } : null
+    };
+    moveHistory.push(state);
+
+    // --- CAPTURAS ---
+    if (target) {
+        if (target.type === 'king') {
+            board[tr][tc] = piece;
+            board[sr][sc] = null;
+            lastMove = { from: { r: sr, c: sc }, to: { r: tr, c: tc }, pieceType: piece.type };
+            showMessage(msg('checkmate', turn), -1);
+            turn = 'none';
+            updateHistoryUI(formatMoveNotation(sr, sc, tr, tc, piece, target));
+            updateUI(turn, capturedPawns);
+            updateTurnText(turn);
+            renderBoard(getGameState());
+            return;
         }
-        if (kingR !== -1) break;
-    }
-    if (kingR === -1) return false;
-    const opponent = color === 'white' ? 'black' : 'white';
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            const p = board[r][c];
-            if (p && p.color === opponent) {
-                const moves = getValidMoves(r, c, true);
-                if (moves.some(m => m.r === kingR && m.c === kingC)) return true;
-            }
-        }
-    }
-    return false;
-}
 
-function getLegalMoves(r, c) {
-    const piece = board[r][c];
-    if (!piece) return [];
-    const moves = getValidMoves(r, c);
-    return moves.filter(move => {
-        const target = board[move.r][move.c];
-        board[move.r][move.c] = piece;
-        board[r][c] = null;
-        const inCheck = isKingInCheck(piece.color);
-        board[r][c] = piece;
-        board[move.r][move.c] = target;
-        return !inCheck;
-    });
-}
+        if (target.type === 'pawn') {
+            capturedPawns[piece.color]++;
 
-function isCheckmate(color) {
-    if (!isKingInCheck(color)) return false;
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            const p = board[r][c];
-            if (p && p.color === color) {
-                if (getLegalMoves(r, c).length > 0) return false;
-            }
-        }
-    }
-    return true;
-}
-
-function isStalemate(color) {
-    if (isKingInCheck(color)) return false;
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            const p = board[r][c];
-            if (p && p.color === color) {
-                if (getLegalMoves(r, c).length > 0) return false;
+            if (PAWN_KILLERS.includes(piece.type) && !piece.promoted) {
+                piece.kills = (piece.kills || 0) + 1;
+                if (piece.kills >= KILLS_TO_PROMOTE) {
+                    piece.promoted = true;
+                    piece.kills = 0;
+                    const name = piece.type === 'rook'
+                        ? (getCurrentLang() === 'es' ? 'Torre de Asedio' : 'Siege Tower')
+                        : (getCurrentLang() === 'es' ? 'Alfil Celestial' : 'Celestial Bishop');
+                    message = msg('promotePawnKill', name);
+                } else {
+                    message = msg('pawnCaptured', piece.kills);
+                }
+            } else {
+                message = msg('pawnCaptured', 0);
             }
         }
     }
-    return true;
-}
 
-
-// Función para detectar amenazas (Inmunidad al Ataque para Enroque) 
-function isSquareAttacked(targetR, targetC, attackerColor) {
-    // Colocamos temporalmente una pieza "señuelo" para calcular correctamente 
-    // si los peones y piezas enemigas pueden atacar esta casilla, incluso estando vacía.
-    const originalPiece = board[targetR][targetC];
-    const dummyColor = attackerColor === 'white' ? 'black' : 'white';
-    
-    board[targetR][targetC] = { color: dummyColor, type: 'dummy' };
-    let attacked = false;
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            const p = board[r][c];
-            if (p && p.color === attackerColor) {
-                const moves = getValidMoves(r, c, true); // true para evitar bucles de enroque infinitos
-                if (moves.some(m => m.r === targetR && m.c === targetC)) {
-                    attacked = true; break;
+    // --- EN PASSANT: eliminar peón capturado ---
+    if (!target && piece.type === 'pawn' && Math.abs(tc - sc) === 1) {
+        // Movimiento diagonal a casilla vacía = en passant
+        const capturedRow = piece.color === 'white' ? tr + 1 : tr - 1;
+        const capturedPawn = board[capturedRow][tc];
+        if (capturedPawn && capturedPawn.type === 'pawn' && capturedPawn.color !== piece.color) {
+            board[capturedRow][tc] = null;
+            capturedPawns[piece.color]++;
+            if (PAWN_KILLERS.includes(piece.type) && !piece.promoted) {
+                piece.kills = (piece.kills || 0) + 1;
+                if (piece.kills >= KILLS_TO_PROMOTE) {
+                    piece.promoted = true;
+                    piece.kills = 0;
+                    const name = piece.type === 'rook'
+                        ? (getCurrentLang() === 'es' ? 'Torre de Asedio' : 'Siege Tower')
+                        : (getCurrentLang() === 'es' ? 'Alfil Celestial' : 'Celestial Bishop');
+                    message = msg('promotePawnKill', name);
+                } else {
+                    message = msg('pawnCaptured', piece.kills);
                 }
             }
         }
-        if (attacked) break;
     }
-    board[targetR][targetC] = originalPiece;
-    return attacked;
+
+    // --- PROMOCIÓN REINA → EMPERATRIZ ---
+    if (!piece.promoted && piece.type === 'queen' && (target || (!target && piece.type === 'pawn' && Math.abs(tc - sc) === 1))) {
+        piece.promoted = true;
+        message = msg('promoteQueen');
+    }
+
+    // --- ENROQUE IMPERIAL ---
+    if (piece.type === 'king' && Math.abs(tc - sc) > 1) {
+        if (tc === 8) {
+            board[tr][7] = board[tr][9];
+            board[tr][9] = null;
+            board[tr][7].hasMoved = true;
+            message = msg('castleRight');
+        } else if (tc === 1) {
+            board[tr][2] = board[tr][0];
+            board[tr][0] = null;
+            board[tr][2].hasMoved = true;
+            message = msg('castleLeft');
+        }
+    }
+
+    // --- MOVER PIEZA ---
+    const notation = formatMoveNotation(sr, sc, tr, tc, piece, target);
+    board[tr][tc] = piece;
+    board[sr][sc] = null;
+    piece.hasMoved = true;
+    lastMove = { from: { r: sr, c: sc }, to: { r: tr, c: tc }, pieceType: piece.type };
+
+    // --- PROMOCIÓN POR TERRITORIO ---
+    if (!piece.promoted && ZONE_PROMOTABLES.includes(piece.type)) {
+        const inZone = (piece.color === 'white' && tr <= PROMOTION_ZONE.white.maxRow) ||
+                       (piece.color === 'black' && tr >= PROMOTION_ZONE.black.minRow);
+        if (inZone) {
+            piece.promoted = true;
+            const names = {
+                pawn:     getCurrentLang() === 'es' ? 'Sargento'           : 'Sergeant',
+                knight:   getCurrentLang() === 'es' ? 'Caballero Imperial' : 'Imperial Knight',
+                paladin:  getCurrentLang() === 'es' ? 'General Real'       : 'Royal General'
+            };
+            message = msg('promoteZone', names[piece.type]);
+        }
+    }
+
+    updateHistoryUI(notation);
+    if (message) showMessage(message);
 }
 
-function getValidMoves(r, c, ignoreCastling = false) {
-    const piece = board[r][c];
+export function undoMove() {
+    if (moveHistory.length === 0) {
+        showMessage(msg('noUndo'));
+        return;
+    }
+    const state = moveHistory.pop();
+    board = state.board;
+    turn = state.turn;
+    capturedPawns = state.capturedPawns;
+    lastMove = state.lastMove;
+    selectedPiece = null;
+    validMoves = [];
+    moveHistoryText.pop();
+    updateHistoryUI();
+    updateUI(turn, capturedPawns);
+    updateTurnText(turn);
+    renderBoard(getGameState());
+    showMessage(msg('undoDone'));
+}
+
+// ============================================================
+// 5. CAMBIO DE TURNO Y CONDICIONES DE FIN
+// ============================================================
+
+export function switchTurn() {
+    if (turn === 'none') return;
+    turn = turn === 'white' ? 'black' : 'white';
+    updateUI(turn, capturedPawns);
+    updateTurnText(turn);
+    renderBoard(getGameState());
+
+    const nextColor = turn;
+
+    if (isCheckmateState(board, nextColor)) {
+        const winner = nextColor === 'white' ? 'black' : 'white';
+        showMessage(msg('checkmate', winner), -1);
+        turn = 'none';
+        updateUI(turn, capturedPawns);
+        updateTurnText(turn);
+        return;
+    }
+    if (isStalemateState(board, nextColor)) {
+        showMessage(msg('stalemate'), -1);
+        turn = 'none';
+        updateUI(turn, capturedPawns);
+        updateTurnText(turn);
+        return;
+    }
+    if (isKingInCheckState(board, nextColor)) {
+        showMessage(msg('check', nextColor));
+    }
+}
+
+// ============================================================
+// 6. MOTOR DE MOVIMIENTOS (FUNCIONES PURAS — OPTIMIZADAS)
+// ============================================================
+
+export function getRawMoves(boardState, r, c, ignoreCastling = false, lastMoveState = null) {
+    const piece = boardState[r][c];
     if (!piece) return [];
     let moves = [];
 
-    // Función auxiliar para añadir movimientos verificando colisiones
     const addMove = (tr, tc, stopOnCapture = true) => {
         if (tr >= 0 && tr < BOARD_SIZE && tc >= 0 && tc < BOARD_SIZE) {
-            const target = board[tr][tc];
+            const target = boardState[tr][tc];
             if (!target) {
                 moves.push({ r: tr, c: tc, capture: false });
                 return true;
@@ -346,28 +339,47 @@ function getValidMoves(r, c, ignoreCastling = false) {
                 return !stopOnCapture;
             }
         }
-        return false; // Bloqueado (aliado o fuera de límites)
+        return false;
     };
 
     const dir = piece.color === 'white' ? -1 : 1;
+    const lm = lastMoveState || lastMove; // fallback a global para compatibilidad UI
 
     // 1. Peón / Sargento
     if (piece.type === 'pawn') {
         if (!piece.promoted) {
-            if (!board[r + dir]?.[c]) addMove(r + dir, c);
-            if (board[r + dir]?.[c - 1]?.color !== piece.color && board[r + dir]?.[c - 1]) addMove(r + dir, c - 1);
-            if (board[r + dir]?.[c + 1]?.color !== piece.color && board[r + dir]?.[c + 1]) addMove(r + dir, c + 1);
+            const startRow = piece.color === 'white' ? 8 : 1;
+            // Avance 1 casilla
+            if (!boardState[r + dir]?.[c]) {
+                addMove(r + dir, c);
+                // Avance 2 casillas desde posición inicial
+                if (r === startRow && !boardState[r + dir * 2]?.[c]) {
+                    addMove(r + dir * 2, c);
+                }
+            }
+            // Capturas diagonales adelante
+            if (boardState[r + dir]?.[c - 1]?.color !== piece.color && boardState[r + dir]?.[c - 1]) addMove(r + dir, c - 1);
+            if (boardState[r + dir]?.[c + 1]?.color !== piece.color && boardState[r + dir]?.[c + 1]) addMove(r + dir, c + 1);
+
+            // Captura al paso (en passant)
+            if (lm && lm.pieceType === 'pawn' && Math.abs(lm.from.r - lm.to.r) === 2) {
+                if (lm.to.r === r && Math.abs(lm.to.c - c) === 1) {
+                    const passantR = (lm.from.r + lm.to.r) / 2;
+                    moves.push({ r: passantR, c: lm.to.c, capture: true, enPassant: true });
+                }
+            }
         } else {
+            // Sargento: adelante + diagonales adelante + diagonales atrás
             const offsets = [{r: dir, c: 0}, {r: dir, c: -1}, {r: dir, c: 1}, {r: -dir, c: -1}, {r: -dir, c: 1}];
             offsets.forEach(off => addMove(r + off.r, c + off.c));
         }
     }
 
-    // 2. Caballo / Cabellero Imperial
+    // 2. Caballo / Caballero Imperial
     else if (piece.type === 'knight') {
-        const knightJumps = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
-        knightJumps.forEach(jmp => addMove(r + jmp[0], c + jmp[1]));
+        MOVEMENT_VECTORS.knight.jumps.forEach(jmp => addMove(r + jmp[0], c + jmp[1]));
         if (piece.promoted) {
+            // Caballero Imperial: + ortogonal 1 casilla
             const orthoJumps = [[-1, 0], [1, 0], [0, -1], [0, 1]];
             orthoJumps.forEach(jmp => addMove(r + jmp[0], c + jmp[1]));
         }
@@ -383,15 +395,11 @@ function getValidMoves(r, c, ignoreCastling = false) {
             ];
             baseOffsets.forEach(off => addMove(r + off.r, c + off.c));
         } else {
-
-            // Estado Ascendido: Conserva cruz (1 casilla) y extiende TODAS las diagonales (hasta 2 casillas)
-            
-            // 1. Ortogonales (Adelante, Atrás, Izquierda, Derecha) - Máximo 1 casilla
+            // General Imperial: ortogonal 1 casilla + diagonales hasta 2 casillas
             const orthoDirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
             orthoDirs.forEach(off => addMove(r + off.r, c + off.c));
-            
-            // 2. Diagonales (Las 4 direcciones) - Hasta 2 casillas
-            const diagDirs = [{r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}];           
+
+            const diagDirs = [{r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}];
             diagDirs.forEach(d => {
                 let canContinue = addMove(r + d.r, c + d.c);
                 if (canContinue) addMove(r + d.r * 2, c + d.c * 2);
@@ -399,20 +407,18 @@ function getValidMoves(r, c, ignoreCastling = false) {
         }
     }
 
-    // 4. Escudero / Alfil 
+    // 4. Escudero / Alfil
     else if (piece.type === 'bishop') {
         const limit = piece.promoted ? BOARD_SIZE : 2;
-        const dirs = [[-1,-1],[-1,1],[1,-1],[1,1]];
-        dirs.forEach(d => {
+        MOVEMENT_VECTORS.bishop.directions.forEach(d => {
             for(let i=1; i<=limit; i++) if(!addMove(r + d[0]*i, c + d[1]*i)) break;
         });
     }
 
-    // 5. Torre / Torre de Asedio
+    // 5. Vigía / Torre de Asedio
     else if (piece.type === 'rook') {
         const limit = piece.promoted ? BOARD_SIZE : 2;
-        const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-        dirs.forEach(d => {
+        MOVEMENT_VECTORS.rook.directions.forEach(d => {
             for(let i=1; i<=limit; i++) if(!addMove(r + d[0]*i, c + d[1]*i)) break;
         });
     }
@@ -420,73 +426,60 @@ function getValidMoves(r, c, ignoreCastling = false) {
     // 6. Reina / Emperatriz
     else if (piece.type === 'queen') {
         if (!piece.promoted) {
-            // Movimiento de Rey (1 casilla)
-            for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) if(dr!==0||dc!==0) addMove(r+dr, c+dc);
-            
-            // Carga especial: Si ve enemigo a lo lejos, puede capturar
-            const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
-            dirs.forEach(d => {
+            // Reina base: 1 casilla cualquier dirección (como rey)
+            MOVEMENT_VECTORS.queen.directions.forEach(d => addMove(r + d[0], c + d[1]));
+
+            // Carga especial: visión en línea recta para captura a distancia
+            MOVEMENT_VECTORS.queen.directions.forEach(d => {
                 let i = 1;
                 while(true) {
                     const tr = r + d[0]*i, tc = c + d[1]*i;
                     if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE) break;
-                    const target = board[tr][tc];
+                    const target = boardState[tr][tc];
                     if (target) {
                         if (target.color !== piece.color) moves.push({r: tr, c: tc, capture: true});
-                        break; // Detener visión
+                        break;
                     }
                     i++;
                 }
             });
         } else {
-            // Emperatriz: Alcance infinito total
-            const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
-            dirs.forEach(d => {
+            // Emperatriz: alcance infinito total (8 direcciones)
+            MOVEMENT_VECTORS.queen.directions.forEach(d => {
                 for(let i=1; i<BOARD_SIZE; i++) if(!addMove(r + d[0]*i, c + d[1]*i)) break;
             });
         }
     }
 
-    // 7. Rey
+    // 7. Rey / Emperador
     else if (piece.type === 'king') {
-        for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
-            if(dr !== 0 || dc !== 0) addMove(r+dr, c+dc);
-        }
+        MOVEMENT_VECTORS.king.directions.forEach(d => addMove(r + d[0], c + d[1]));
 
         // Enroque Imperial
         if (!ignoreCastling && !piece.hasMoved) {
             const opponentColor = piece.color === 'white' ? 'black' : 'white';
-            
-            // Condición principal: El Emperador no puede estar en jaque
-            if (!isSquareAttacked(r, c, opponentColor)) {
-                
-                // Enroque Imperial Derecho (Rey a col 8, Vigía a col 7)
-                const rightRook = board[r][9];
+
+            if (!isSquareAttackedState(boardState, r, c, opponentColor, lm)) {
+                // Enroque Derecho
+                const rightRook = boardState[r][9];
                 if (rightRook && rightRook.type === 'rook' && !rightRook.hasMoved) {
-                    
-                    // Limpieza de Terreno (Columnas 6, 7 y 8 libres)
-                    if (!board[r][6] && !board[r][7] && !board[r][8]) {
-                        
-                        // Inmunidad al trayecto y llegada
-                        if (!isSquareAttacked(r, 6, opponentColor) && 
-                            !isSquareAttacked(r, 7, opponentColor) && 
-                            !isSquareAttacked(r, 8, opponentColor)) {
+                    if (!boardState[r][6] && !boardState[r][7] && !boardState[r][8]) {
+                        if (!isSquareAttackedState(boardState, r, 6, opponentColor, lm) &&
+                            !isSquareAttackedState(boardState, r, 7, opponentColor, lm) &&
+                            !isSquareAttackedState(boardState, r, 8, opponentColor, lm)) {
                             moves.push({ r: r, c: 8, capture: false });
                         }
                     }
                 }
 
-                // Enroque Imperial Izquierdo (Rey a col 1, Vigía a col 2)
-                const leftRook = board[r][0];
+                // Enroque Izquierdo
+                const leftRook = boardState[r][0];
                 if (leftRook && leftRook.type === 'rook' && !leftRook.hasMoved) {
-                    
-                    // Limpieza de Terreno incluyendo el espacio de la Reina (Columnas 1, 2, 3 y 4)
-                    if (!board[r][1] && !board[r][2] && !board[r][3] && !board[r][4]) {
-                        // Inmunidad al trayecto y llegada
-                        if (!isSquareAttacked(r, 1, opponentColor) && 
-                            !isSquareAttacked(r, 2, opponentColor) && 
-                            !isSquareAttacked(r, 3, opponentColor) && 
-                            !isSquareAttacked(r, 4, opponentColor)) {
+                    if (!boardState[r][1] && !boardState[r][2] && !boardState[r][3] && !boardState[r][4]) {
+                        if (!isSquareAttackedState(boardState, r, 1, opponentColor, lm) &&
+                            !isSquareAttackedState(boardState, r, 2, opponentColor, lm) &&
+                            !isSquareAttackedState(boardState, r, 3, opponentColor, lm) &&
+                            !isSquareAttackedState(boardState, r, 4, opponentColor, lm)) {
                             moves.push({ r: r, c: 1, capture: false });
                         }
                     }
@@ -494,225 +487,230 @@ function getValidMoves(r, c, ignoreCastling = false) {
             }
         }
     }
+
     return moves;
 }
 
-function executeMove(sr, sc, tr, tc) {
-    const piece = board[sr][sc];
-    if (!piece) return;
+export function getLegalMovesState(boardState, r, c, lastMoveState = null) {
+    const piece = boardState[r][c];
+    if (!piece) return [];
+    const color = piece.color;
+    const raw = getRawMoves(boardState, r, c, false, lastMoveState);
+    const legal = [];
+    for (const m of raw) {
+        const sim = simulateMove(boardState, r, c, m.r, m.c, lastMoveState);
+        if (!isKingInCheckState(sim, color)) {
+            legal.push(m);
+        }
+    }
+    return legal;
+}
 
-    // --- Bloquear selector de dificultad despues del primer movimiento ---
-    const cpuSelect = document.getElementById('cpu-level');
-    if (cpuSelect && !cpuSelect.disabled) {
-        cpuSelect.disabled = true;
+export function getLegalMoves(r, c) {
+    return getLegalMovesState(board, r, c);
+}
+
+function simulateMove(boardState, sr, sc, tr, tc, lastMoveState = null) {
+    const sim = boardState.map(row => row.map(p => p ? { ...p } : null));
+    const piece = sim[sr][sc];
+    sim[tr][tc] = piece;
+    sim[sr][sc] = null;
+
+    // Enroque: mover vigía
+    if (piece && piece.type === 'king' && Math.abs(tc - sc) > 1) {
+        if (tc === 8) {
+            sim[tr][7] = sim[tr][9];
+            sim[tr][9] = null;
+            if (sim[tr][7]) sim[tr][7].hasMoved = true;
+        } else if (tc === 1) {
+            sim[tr][2] = sim[tr][0];
+            sim[tr][0] = null;
+            if (sim[tr][2]) sim[tr][2].hasMoved = true;
+        }
     }
 
-    const target = board[tr][tc];
-    let msg = "";
+    // En passant: eliminar peón capturado
+    if (lastMoveState && piece && piece.type === 'pawn' &&
+        Math.abs(tc - sc) === 1 && !boardState[tr][tc]) {
+        const capturedRow = piece.color === 'white' ? tr + 1 : tr - 1;
+        if (capturedRow >= 0 && capturedRow < BOARD_SIZE) {
+            sim[capturedRow][tc] = null;
+        }
+    }
 
-    const state = {
-        board: board.map(row => row.map(p => p ? {...p} : null)),
-        turn: turn,
-        capturedPawns: {...capturedPawns},
-        lastMove: lastMove ? { from: {...lastMove.from}, to: {...lastMove.to} } : null
-    };
-    moveHistory.push(state);
+    if (piece) piece.hasMoved = true;
+    return sim;
+}
 
-    // Capturas
-    if (target) {
-        if (target.type === 'pawn') {
-            capturedPawns[piece.color]++;
-            
-            // Contador de experiencia individual para la pieza
-            if (['bishop', 'rook'].includes(piece.type) && !piece.promoted) {
-                piece.kills = (piece.kills || 0) + 1;
-                
-                // Si alcanza 3 capturas, promueve y se limpia el contador de estrellas
-                if (piece.kills >= 3) {
-                    piece.promoted = true;
-                    piece.kills = 0; // Se remueven las estrellas al cambiar a la nueva imagen
-                    const name = piece.type === 'rook' ? 'Torre de Asedio' : 'Alfil Celestial';
-                    msg = `Ascenso! ${name}`;
-                } else {
-                    msg = `Peon capturado! Exp: ${piece.kills}/3★`;
+// ============================================================
+// 7. ATAQUES, JAQUE, JAQUE MATE, AHOGADO (OPTIMIZADO)
+// ============================================================
+
+export function isSquareAttackedState(boardState, r, c, byColor, lastMoveState = null) {
+    const lm = lastMoveState || lastMove;
+
+    // 1. Peones (ataque diagonal inverso)
+    const pawnDir = byColor === 'white' ? -1 : 1;
+    const pawnRows = [r - pawnDir, r - pawnDir];
+    const pawnCols = [c - 1, c + 1];
+    for (let i = 0; i < 2; i++) {
+        const pr = pawnRows[i], pc = pawnCols[i];
+        if (pr >= 0 && pr < BOARD_SIZE && pc >= 0 && pc < BOARD_SIZE) {
+            const p = boardState[pr][pc];
+            if (p && p.color === byColor && p.type === 'pawn') return true;
+        }
+    }
+
+    // 2. Caballo (8 saltos)
+    for (const [dr, dc] of MOVEMENT_VECTORS.knight.jumps) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const p = boardState[nr][nc];
+            if (p && p.color === byColor && p.type === 'knight') return true;
+        }
+    }
+
+    // 3. Rey y Paladín base (1 casilla alrededor)
+    for (const [dr, dc] of MOVEMENT_VECTORS.king.directions) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const p = boardState[nr][nc];
+            if (p && p.color === byColor && (p.type === 'king' || p.type === 'paladin')) return true;
+        }
+    }
+
+    // 4. Deslizantes: Torre/Alfil/Queen (ray casting desde objetivo)
+    const slideChecks = [
+        { dirs: MOVEMENT_VECTORS.rook.directions, types: new Set(['rook', 'queen']) },
+        { dirs: MOVEMENT_VECTORS.bishop.directions, types: new Set(['bishop', 'queen']) }
+    ];
+
+    for (const { dirs, types } of slideChecks) {
+        for (const [dr, dc] of dirs) {
+            let dist = 1;
+            while (dist < BOARD_SIZE) {
+                const nr = r + dr * dist;
+                const nc = c + dc * dist;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) break;
+                const p = boardState[nr][nc];
+                if (p) {
+                    if (p.color === byColor && types.has(p.type)) return true;
+                    break; // Bloqueado
                 }
-            } else {
-                msg = `Peon capturado por ${turn === 'white' ? 'Blancas' : 'Negras'}!`;
+                dist++;
             }
-        } else if (target.type === 'king') {
-            board[tr][tc] = piece;
-            board[sr][sc] = null;
-            lastMove = { from: {r: sr, c: sc}, to: {r: tr, c: tc} };
-            showMessage(`Jaque Mate! Ganan las ${turn === 'white' ? 'Blancas' : 'Negras'}.`);
-            turn = 'none'; // Fin del juego
-            updateHistoryUI(formatMoveNotation(sr, sc, tr, tc, piece, target));
-            updateUI();
-            renderBoard();
-            return;
         }
     }
 
-    // Reina -> Emperatriz por primera captura
-    if (!piece.promoted && piece.type === 'queen' && target) {
-        piece.promoted = true;
-        msg = "La Reina asciende a Emperatriz!";
-    }
-
-    // Enroque
-    if (piece.type === 'king' && Math.abs(tc - sc) > 1) {
-        if (tc === 8) { // Ejecuta Enroque Derecho
-            board[tr][7] = board[tr][9]; // Mueve el Vigía
-            board[tr][9] = null;
-            board[tr][7].hasMoved = true;
-            msg = "Enroque Imperial Flanco Derecho!";
-        } else if (tc === 1) { // Ejecuta Enroque Izquierdo
-            board[tr][2] = board[tr][0]; // Mueve el Vigía
-            board[tr][0] = null;
-            board[tr][2].hasMoved = true;
-            msg = "Enroque Imperial Flanco Izquierdo!";
+    // 5. Caballero Imperial (caballo promovido: + ortogonal 1)
+    // Nota: un caballero promovido ataca como rey. Ya cubierto por el loop de Rey/Paladín arriba
+    // porque el Caballero Imperial tiene movimiento de rey. Pero espera: el caballo promovido
+    // no es 'paladin', es 'knight' con promoted=true. Su ataque ortogonal 1 casilla NO está
+    // cubierto arriba porque solo chequeamos type==='king' || type==='paladin'.
+    // FIX: verificar caballos promovidos en las 4 ortogonales.
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const p = boardState[nr][nc];
+            if (p && p.color === byColor && p.type === 'knight' && p.promoted) return true;
         }
     }
 
-    // Mover pieza
-    const notation = formatMoveNotation(sr, sc, tr, tc, piece, target);
-    board[tr][tc] = piece;
-    board[sr][sc] = null;
-    piece.hasMoved = true;
-    lastMove = { from: {r: sr, c: sc}, to: {r: tr, c: tc} };
-
-    // Promocion por territorio (ultimas 2 filas enemigas)
-    if (!piece.promoted && ['pawn', 'knight', 'paladin'].includes(piece.type)) {
-        if ((piece.color === 'white' && tr <= 1) || (piece.color === 'black' && tr >= 8)) {
-            piece.promoted = true;
-            const names = {pawn: 'Sargento', knight: 'Caballero Imperial', paladin: 'General Real'};
-            msg = `${names[piece.type]} promovido por territorio!`;
+    // 6. General Imperial (paladín promovido: diagonales hasta 2)
+    // El loop de arriba solo cubre Paladín base (1 casilla). El promovido tiene diagonales 2.
+    for (const [dr, dc] of MOVEMENT_VECTORS.bishop.directions) {
+        for (let dist = 1; dist <= 2; dist++) {
+            const nr = r + dr * dist;
+            const nc = c + dc * dist;
+            if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) break;
+            const p = boardState[nr][nc];
+            if (p) {
+                if (p.color === byColor && p.type === 'paladin' && p.promoted) return true;
+                break;
+            }
         }
     }
 
-    updateHistoryUI(notation);
-    if (msg) showMessage(msg);
+    return false;
 }
 
-function undoMove() {
-    if (moveHistory.length === 0) {
-        showMessage("No hay movimientos para deshacer.");
-        return;
+export function isKingInCheckState(boardState, color, lastMoveState = null) {
+    let kr = -1, kc = -1;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            const p = boardState[r][c];
+            if (p && p.type === 'king' && p.color === color) {
+                kr = r; kc = c; break;
+            }
+        }
+        if (kr !== -1) break;
     }
-    const state = moveHistory.pop();
-    board = state.board;
-    turn = state.turn;
-    capturedPawns = state.capturedPawns;
-    lastMove = state.lastMove;
-    selectedPiece = null;
-    validMoves = [];
-    moveHistoryText.pop(); // Actualizar historial visual (eliminar última entrada)
-    updateHistoryUI(); // Sin parámetro, solo renderiza el array actual
-    updateUI();
-    renderBoard();
-    showMessage("Movimiento deshecho.");
+    if (kr === -1) return false;
+    return isSquareAttackedState(boardState, kr, kc, opp(color), lastMoveState);
 }
 
-function switchTurn() {
-    if (turn === 'none') return;
-    turn = turn === 'white' ? 'black' : 'white';
-    updateUI();
-    renderBoard();
+export function isCheckmateState(boardState, color, lastMoveState = null) {
+    if (!isKingInCheckState(boardState, color, lastMoveState)) return false;
+    return !hasAnyLegalMove(boardState, color, lastMoveState);
+}
 
-    const nextColor = turn;
-    if (isCheckmate(nextColor)) {
-        const winner = nextColor === 'white' ? 'Negras' : 'Blancas';
-        showMessage(`Jaque Mate! Ganan las ${winner}.`);
-        turn = 'none';
-        updateUI();
-        return;
-    }
-    if (isStalemate(nextColor)) {
-        showMessage("Tablas por ahogado!");
-        turn = 'none';
-        updateUI();
-        return;
-    }
-    if (isKingInCheck(nextColor)) {
-        showMessage(`Jaque al Emperador ${nextColor === 'white' ? 'Blanco' : 'Negro'}!`);
-    }
+export function isStalemateState(boardState, color, lastMoveState = null) {
+    if (isKingInCheckState(boardState, color, lastMoveState)) return false;
+    return !hasAnyLegalMove(boardState, color, lastMoveState);
+}
 
-    // CPU turn
-    if (gameMode === 'pvc' && turn === 'black' && turn !== 'none') {
-        cpuThinking = true;
-        updateUI();
-        setTimeout(function() {
-            const cpu = createCPU(window.cpuDifficulty || 'medio');
-            const move = cpu.getBestMove(board, 'black');
-            if (move) {
-                executeMove(move.from.r, move.from.c, move.to.r, move.to.c);
-                if (turn !== 'none') {
-                    switchTurn();
+function hasAnyLegalMove(boardState, color, lastMoveState = null) {
+    for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            const p = boardState[r][c];
+            if (p && p.color === color) {
+                const legal = getLegalMovesState(boardState, r, c, lastMoveState);
+                if (legal.length > 0) return true;
+            }
+        }
+    }
+    return false;
+}
+
+// ============================================================
+// 8. TODOS LOS MOVIMIENTOS LEGALES (para CPU)
+// ============================================================
+
+export function getAllLegalMovesState(boardState, color, lastMoveState = null) {
+    const moves = [];
+    for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            const p = boardState[r][c];
+            if (p && p.color === color) {
+                const legal = getLegalMovesState(boardState, r, c, lastMoveState);
+                for (const m of legal) {
+                    moves.push({
+                        from: { r, c },
+                        to: { r: m.r, c: m.c },
+                        capture: m.capture,
+                        pieceType: p.type,
+                        enPassant: m.enPassant || false
+                    });
                 }
-            } else {
-                showMessage("La CPU no encuentra movimiento. Tablas!");
-                turn = 'none';
             }
-            cpuThinking = false;
-            updateUI();
-            renderBoard();
-        }, 400);
+        }
     }
+    return moves;
 }
 
-function updateUI() {
-    const turnText = document.getElementById('turn-text');
-    const turnColor = document.getElementById('turn-indicator-color');
-    const whiteCaps = document.getElementById('white-captures');
-    const blackCaps = document.getElementById('black-captures');
+// ============================================================
+// 9. UTILIDADES
+// ============================================================
 
-    if (turnText) turnText.textContent = turn === 'none' ? 'Fin' : (turn === 'white' ? 'Blancas' : 'Negras');
-    if (turnColor) {
-        turnColor.className = 'w-4 h-4 rounded-full border border-gray-400 ' + (turn === 'white' ? 'bg-white' : (turn === 'black' ? 'bg-[#111]' : 'bg-red-500'));
-    }
-    if (whiteCaps) whiteCaps.textContent = capturedPawns.white;
-    if (blackCaps) blackCaps.textContent = capturedPawns.black;
+function inBounds(r, c) {
+    return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
 }
 
-function showMessage(text) {
-    const msgEl = document.getElementById('game-message');
-    if (!msgEl) return;
-    msgEl.textContent = text;
-    msgEl.style.opacity = '0';
-    setTimeout(() => msgEl.style.opacity = '1', 50);
-
-    // Si es un mensaje transitorio, limpiarlo después de unos segundos (opcional)
-    if(text !== "¡Partida iniciada!" && !text.includes("Ganan")) {
-        setTimeout(() => {
-            if(msgEl.textContent === text) msgEl.textContent = "";
-        }, 3000);
-    }
+function opp(color) {
+    return color === 'white' ? 'black' : 'white';
 }
 
-function getSquareNotation(r, c) {
-    const yNum = (r < 5) ? 5 - r : r - 4;
-    const yDir = (r < 5) ? 'N' : 'S';
-    const xNum = (c < 5) ? 5 - c : c - 4;
-    const xDir = (c < 5) ? 'O' : 'E';
-    if (yNum === xNum) return `${yNum}${yDir}${xDir}`;
-    return `${yNum}${yDir}${xNum}${xDir}`;
-}
-
-function getPieceSymbol(piece, c) {
-    if (!piece) return '';
-    const isEast = c >= 5;
-    switch (piece.type) {
-        case 'pawn': return piece.promoted ? 'S' : 'x';
-        case 'rook': return piece.promoted ? 'T' : (isEast ? 'Ve' : 'Vo');
-        case 'bishop': return piece.promoted ? (isEast ? 'Ae' : 'Ao') : (isEast ? 'Ee' : 'Eo');
-        case 'knight': return piece.promoted ? 'Cr' : 'C';
-        case 'paladin': return piece.promoted ? 'G' : 'P';
-        case 'queen': return piece.promoted ? 'Q' : 'R';
-        case 'king': return 'K';
-        default: return '';
-    }
-}
-
-function formatMoveNotation(sr, sc, tr, tc, piece, target) {
+export function formatMoveNotation(sr, sc, tr, tc, piece, target) {
     const fromCoord = getSquareNotation(sr, sc);
     const toCoord = getSquareNotation(tr, tc);
     const pieceSymbol = getPieceSymbol(piece, sc);
@@ -733,3 +731,22 @@ function updateHistoryUI(notation) {
     });
     listEl.scrollTop = listEl.scrollHeight;
 }
+
+export function setCpuThinking(val) {
+    cpuThinking = val;
+}
+
+// ============================================================
+// 10. EXPORTS
+// ============================================================
+
+export {
+    board,
+    turn,
+    capturedPawns,
+    gameMode,
+    cpuThinking,
+    lastMove,
+    selectedPiece,
+    validMoves
+};

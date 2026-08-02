@@ -1,6 +1,28 @@
+// cpu.js — Motor de IA Ajedrez Imperial 10x10
+// Tabla de Transposiciones (TT) + Zobrist Hashing incremental.
+// Detección de repetición. Mutación controlada. API pública pura.
 
-// CPU.JS - Motor Imperial con Iterative Deepening + Partial Results
-// game.js (debe cargarse ANTES que este archivo)
+import {
+    BOARD_SIZE,
+    PIECE_VALUES,
+    PROMOTION_BONUS,
+    POSITION_BONUS,
+    CPU_DIFFICULTY,
+    PAWN_KILLERS,
+    ZONE_PROMOTABLES,
+    KILLS_TO_PROMOTE,
+    PROMOTION_ZONE,
+    getSquareNotation
+} from './constants.js';
+
+import {
+    getAllLegalMovesState,
+    isKingInCheckState,
+    isSquareAttackedState
+} from './game.js';
+
+
+// CLASE IMPERIAL CPU
 
 class ImperialCPU {
     constructor(config = {}) {
@@ -8,141 +30,227 @@ class ImperialCPU {
         this.depthLimit = config.depthLimit || 0;
         this.randomness = config.randomness !== undefined ? config.randomness : 0.12;
 
-        this.values = {
-            pawn: 100, 
-            sargento: 280, 
-            knight: 350, 
-            caballero: 550,
-            paladin: 450, 
-            general_real: 700, 
-            bishop: 250, 
-            alfil: 330,
-            rook: 400, 
-            torre: 500, 
-            queen: 600, 
-            emperatriz: 2000, 
-            king: 10000
-        };
+        this.openingBook = null;
+        this.externalEvaluator = null;
+
+        // Tabla de Transposiciones
+        this.transpositionTable = null;
+        this._ttMaxSize = 500000;
+        this._ttAge = 0;
+
+        // Zobrist keys (inicializadas lazy)
+        this._zobrist = null;
+        this._currentHash = 0n;
     }
 
- 
-    // ENTRADA PRINCIPAL
- 
-    getBestMove(gameBoard, color) {
-        const originalBoard = board;
-        // Clonar tablero para simulacion
-        board = gameBoard.map(function(row) {
-            return row.map(function(p) { return p ? Object.assign({}, p) : null; });
-        });
+    
+    // ZOBRIST HASHING: Generacion de tablas para mejorar procesamiento de posiciones y detección de repeticiones
 
+    _initZobrist() {
+        if (this._zobrist) return;
+        const rand64 = () => {
+            const high = BigInt((Math.random() * 0xFFFFFFFF) | 0);
+            const low  = BigInt((Math.random() * 0xFFFFFFFF) | 0);
+            return (high << 32n) | low;
+        };
+
+        const types = ['pawn','knight','bishop','rook','paladin','queen','king'];
+        const colors = ['white','black'];
+
+        this._zobrist = {
+            piece: {},
+            turn: { white: rand64(), black: rand64() },
+            captures: { white: Array(21).fill(0n).map(rand64), black: Array(21).fill(0n).map(rand64) }
+        };
+
+        for (const type of types) {
+            this._zobrist.piece[type] = {};
+            for (const color of colors) {
+                this._zobrist.piece[type][color] = { false: [], true: [] };
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    this._zobrist.piece[type][color].false[r] = Array(BOARD_SIZE).fill(0n).map(rand64);
+                    this._zobrist.piece[type][color].true[r]  = Array(BOARD_SIZE).fill(0n).map(rand64);
+                }
+            }
+        }
+    }
+
+    _computeHash(boardState, turn, captures) {
+        let hash = 0n;
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const p = boardState[r][c];
+                if (p) {
+                    hash ^= this._zobrist.piece[p.type][p.color][p.promoted][r][c];
+                }
+            }
+        }
+        hash ^= this._zobrist.turn[turn];
+        hash ^= this._zobrist.captures.white[captures.white || 0];
+        hash ^= this._zobrist.captures.black[captures.black || 0];
+        return hash;
+    }
+
+    
+    // TABLA DE TRANSPOSICIONES
+    enableTranspositionTable(maxSize = 500000) {
+        this.transpositionTable = new Map();
+        this._ttMaxSize = maxSize;
+    }
+
+    _ttGet(hash) {
+        if (!this.transpositionTable) return null;
+        return this.transpositionTable.get(hash.toString(16)) || null;
+    }
+
+    _ttStore(hash, depth, score, flag, bestMove) {
+        if (!this.transpositionTable) return;
+        const key = hash.toString(16);
+        const existing = this.transpositionTable.get(key);
+        // Reemplazo: si nueva profundidad es mayor, o si entrada vieja es de edad anterior
+        if (!existing || existing.depth <= depth || existing.age < this._ttAge) {
+            this.transpositionTable.set(key, { hash, depth, score, flag, bestMove, age: this._ttAge });
+        }
+        // Limpieza por tamaño (simple: clear cuando excede 2x)
+        if (this.transpositionTable.size > this._ttMaxSize * 2) {
+            this.transpositionTable.clear();
+            this._ttAge++;
+        }
+    }
+
+    
+    // API PÚBLICA
+    getBestMove(boardState, color, capturedPawnsState = { white: 0, black: 0 }, lastMoveState = null, positionHistory = []) {
+        this._initZobrist();
         const startTime = Date.now();
+
+        if (this.openingBook) {
+            const bookMove = this.openingBook.findMove(boardState, color, lastMoveState);
+            if (bookMove) {
+                console.log('[CPU] Jugada de libro:', this._moveToString(bookMove));
+                return bookMove;
+            }
+        }
+
+        this._currentHash = this._computeHash(boardState, color, capturedPawnsState);
+        const currentKey = this._currentHash.toString(16);
+        const fullHistory = new Set(positionHistory);
+        fullHistory.add(currentKey);
+
         let bestMove = null;
         let bestPartialInfo = null;
 
         for (let depth = 1; ; depth++) {
-            // Limite de profundidad explicito
             if (this.depthLimit > 0 && depth > this.depthLimit) {
-                console.log('[CPU] Limite de profundidad alcanzado (' + this.depthLimit + ').');
+                console.log(`[CPU] Límite de profundidad (${this.depthLimit}).`);
                 break;
             }
 
-            // verificaicon de timeLimit, para no seguir intentando
-            const elapsedBefore = Date.now() - startTime;
-            if (elapsedBefore > this.timeLimit) {
-                console.log('[CPU] Tiempo total agotado (' + elapsedBefore + 'ms > ' + this.timeLimit + 'ms). ' +
-                    'Usando mejor resultado disponible de depth ' + (bestPartialInfo ? bestPartialInfo.depth : 0));
+            const elapsed = Date.now() - startTime;
+            const remaining = this.timeLimit - elapsed;
+
+            if (bestPartialInfo && bestPartialInfo.depth >= 1) {
+                const prevTime = bestPartialInfo.elapsed || 100;
+                const estimated = prevTime * 4;
+                if (estimated > remaining * 0.85) {
+                    console.log(`[CPU] Estimación depth ${depth}: ~${estimated}ms > ${remaining}ms restantes. Abortando.`);
+                    break;
+                }
+            }
+
+            if (elapsed > this.timeLimit) {
+                console.log(`[CPU] Tiempo agotado. Usando depth ${bestPartialInfo ? bestPartialInfo.depth : 0}.`);
                 break;
             }
 
-            // Intentar con profundidad establecida. minimaxRoot se encarga de cortar por tiempo internamente.
-            const result = this.minimaxRoot(color, depth, startTime);
+            const simBoard = this._cloneBoard(boardState);
+            const simCaptures = { ...capturedPawnsState };
+            this._currentHash = this._computeHash(simBoard, color, simCaptures);
+
+            const result = this._minimaxRoot(simBoard, simCaptures, lastMoveState, color, depth, startTime, fullHistory);
 
             if (result && result.move) {
-                // Guardamos este resultado (hipotesis: siempre es mejor que el anterior porque es depth mayor)
                 bestMove = result.move;
-                bestPartialInfo = result;
-                bestPartialInfo.depth = depth;
+                bestPartialInfo = { ...result, depth, elapsed: Date.now() - startTime };
 
-                const elapsedAfter = Date.now() - startTime;
+                const now = Date.now() - startTime;
+                const ttInfo = this.transpositionTable ? `| TT: ${this.transpositionTable.size}` : '';
                 console.log(
-                    '[CPU] Depth ' + depth + ' | ' +
-                    'Evaluados: ' + result.evaluated + '/' + result.total + ' movimientos | ' +
-                    'Mejor score: ' + result.score.toFixed(1) + ' | ' +
-                    'Elegido: ' + this.moveToString(result.move) + ' | ' +
-                    'Tiempo usado: ' + elapsedAfter + 'ms' +
-                    (result.partial ? ' [PARCIAL]' : ' [COMPLETA]')
+                    `[CPU] Depth ${depth} | ${result.evaluated}/${result.total} movs | ` +
+                    `Score: ${result.score.toFixed(1)} | ${this._moveToString(result.move)} | ` +
+                    `${now}ms${result.partial ? ' [PARCIAL]' : ' [COMPLETO]'} ${ttInfo}`
                 );
 
-                // Si fue completa, intentamos la siguiente profundidad
-                if (!result.partial) {
-                    continue;
-                }
-
-                // Si fue parcial, la usamos como mejor resultado y paramos
-                console.log('[CPU] Depth ' + depth + ' fue parcial. Fin de busqueda.');
+                if (!result.partial) continue;
                 break;
             } else {
-                // No pudo evaluar NINGUN movimiento de esta profundidad (tiempo se acabo antes del primero)
-                console.log('[CPU] Depth ' + depth + ' no pudo evaluar ningun movimiento. ' +
-                    'Usando mejor resultado de depth ' + (bestPartialInfo ? bestPartialInfo.depth : 0));
+                console.log(`[CPU] Depth ${depth} sin resultados.`);
                 break;
             }
         }
 
-        board = originalBoard;
-
         if (bestMove && bestPartialInfo) {
             console.log(
-                '[CPU] === RESULTADO FINAL === | ' +
-                'Depth: ' + bestPartialInfo.depth + ' | ' +
-                'Movimientos evaluados: ' + bestPartialInfo.evaluated + '/' + bestPartialInfo.total + ' | ' +
-                'Score: ' + bestPartialInfo.score.toFixed(1) + ' | ' +
-                'Movimiento: ' + this.moveToString(bestMove)
+                `[CPU] === RESULTADO === Depth: ${bestPartialInfo.depth} | ` +
+                `Score: ${bestPartialInfo.score.toFixed(1)} | Mov: ${this._moveToString(bestMove)}`
             );
         }
 
         return bestMove;
     }
 
-    moveToString(move) {
-        return getSquareNotation(move.from.r, move.from.c) + ' -> ' + getSquareNotation(move.to.r, move.to.c);
+    setOpeningBook(book) { this.openingBook = book; }
+    setExternalEvaluator(fn) { this.externalEvaluator = fn; }
+
+    
+    // DETECCIÓN DE REPETICIÓN
+    _countRepetitions(positionKey, historySet) {
+        let count = 0;
+        for (const k of historySet) {
+            if (k === positionKey) count++;
+        }
+        return count;
     }
 
-    estimateTimeForDepth(depth) {
-        const base = 15;
-        return base * Math.pow(6, depth - 1);
-    }
-
-
-    // MINIMAX ROOT - con partial results y aleatoriedad
-
-    minimaxRoot(color, depth, startTime) {
-        const moves = this.getAllLegalMoves(color);
+    
+    // MINIMAX ROOT
+    _minimaxRoot(board, captures, lastMoveState, color, depth, startTime, positionHistory) {
+        const moves = getAllLegalMovesState(board, color, lastMoveState);
         if (moves.length === 0) return null;
+
+        // TT bestMove para ordenamiento
+        const ttEntry = this._ttGet(this._currentHash);
+        this._orderMoves(moves, board, ttEntry?.bestMove || null);
 
         let bestScore = -Infinity;
         let bestMoves = [];
         let evaluatedCount = 0;
         let partial = false;
+        const alphaOrig = -Infinity;
 
-        for (let i = 0; i < moves.length; i++) {
-            const move = moves[i];
-
-            // CHECK DE TIEMPO ANTES DE CADA MOVIMIENTO RAIZ
-            const elapsed = Date.now() - startTime;
-            if (elapsed > this.timeLimit) {
-                console.log(
-                    '[CPU] Depth ' + depth + ' PARCIAL | ' +
-                    'Tiempo agotado tras ' + evaluatedCount + '/' + moves.length + ' movimientos | ' +
-                    'Faltaron: ' + (moves.length - evaluatedCount)
-                );
+        for (const move of moves) {
+            if (Date.now() - startTime > this.timeLimit) {
                 partial = true;
                 break;
             }
 
-            const state = this.makeMove(move);
-            const score = this.minimax(depth - 1, -Infinity, Infinity, false, color, startTime);
-            this.undoMove(state);
+            const undo = this._applyMove(board, captures, move, lastMoveState);
+            const newLastMove = {
+                from: { r: move.from.r, c: move.from.c },
+                to: { r: move.to.r, c: move.to.c },
+                pieceType: move.pieceType
+            };
+
+            const nextColor = color === 'white' ? 'black' : 'white';
+            const newKey = this._currentHash.toString(16);
+            const repCount = this._countRepetitions(newKey, positionHistory);
+
+            let score = this._minimax(board, captures, newLastMove, depth - 1, -Infinity, Infinity, false, color, startTime, positionHistory);
+
+            if (repCount >= 2) score -= 5000;
+            else if (repCount === 1) score -= 150;
+
+            this._revertMove(board, captures, undo);
             evaluatedCount++;
 
             const noise = (Math.random() - 0.5) * 2 * this.randomness * 50;
@@ -156,10 +264,7 @@ class ImperialCPU {
             }
         }
 
-        if (bestMoves.length === 0) {
-            // No evaluo ninguno (tiempo se acabo antes del primer movimiento)
-            return null;
-        }
+        if (bestMoves.length === 0) return null;
 
         const chosen = bestMoves[Math.floor(Math.random() * bestMoves.length)];
         return {
@@ -171,249 +276,336 @@ class ImperialCPU {
         };
     }
 
-    // MINIMAX con Poda Alfa-Beta
-
-    minimax(depth, alpha, beta, isMaximizing, cpuColor, startTime) {
+    
+    // MINIMAX CON PODA ALFA-BETA + TT
+    _minimax(board, captures, lastMoveState, depth, alpha, beta, isMaximizing, cpuColor, startTime, positionHistory) {
         const currentColor = isMaximizing ? cpuColor : (cpuColor === 'white' ? 'black' : 'white');
 
-        // Check de tiempo de emergencia: si se acabo el tiempo, devolvemos evaluacion inmediata
-        if (startTime && (Date.now() - startTime > this.timeLimit)) {
-            return this.evaluate(cpuColor);
+        if (Date.now() - startTime > this.timeLimit) {
+            return this.evaluate(board, captures, cpuColor);
+        }
+
+        const posKey = this._currentHash.toString(16);
+        if (this._countRepetitions(posKey, positionHistory) >= 2) return 0;
+
+        // --- TT LOOKUP ---
+        const ttEntry = this._ttGet(this._currentHash);
+        if (ttEntry && ttEntry.depth >= depth) {
+            if (ttEntry.flag === 'EXACT') return ttEntry.score;
+            if (ttEntry.flag === 'LOWER' && ttEntry.score >= beta) return ttEntry.score;
+            if (ttEntry.flag === 'UPPER' && ttEntry.score <= alpha) return ttEntry.score;
         }
 
         if (depth === 0) {
-            return this.evaluate(cpuColor);
+            if (this.externalEvaluator) {
+                const ext = this.externalEvaluator(board, captures, cpuColor);
+                if (ext !== null) return ext;
+            }
+            return this.evaluate(board, captures, cpuColor);
         }
 
-        const moves = this.getAllLegalMoves(currentColor);
-
+        const moves = getAllLegalMovesState(board, currentColor, lastMoveState);
         if (moves.length === 0) {
-            if (isKingInCheck(currentColor)) {
+            if (isKingInCheckState(board, currentColor, lastMoveState)) {
                 return isMaximizing ? -50000 : 50000;
             }
             return 0;
         }
 
-        moves.sort(function(a, b) {
-            return (b.capture ? 1 : 0) - (a.capture ? 1 : 0);
-        });
+        this._orderMoves(moves, board, ttEntry?.bestMove || null);
+
+        let bestMoveForTT = null;
+        let alphaOrig = alpha;
 
         if (isMaximizing) {
             let maxEval = -Infinity;
-            for (let i = 0; i < moves.length; i++) {
-                const state = this.makeMove(moves[i]);
-                const eval_ = this.minimax(depth - 1, alpha, beta, false, cpuColor, startTime);
-                this.undoMove(state);
-                maxEval = Math.max(maxEval, eval_);
+            for (const move of moves) {
+                const undo = this._applyMove(board, captures, move, lastMoveState);
+                const newLastMove = {
+                    from: { r: move.from.r, c: move.from.c },
+                    to: { r: move.to.r, c: move.to.c },
+                    pieceType: move.pieceType
+                };
+                const eval_ = this._minimax(board, captures, newLastMove, depth - 1, alpha, beta, false, cpuColor, startTime, positionHistory);
+                this._revertMove(board, captures, undo);
+
+                if (eval_ > maxEval) {
+                    maxEval = eval_;
+                    bestMoveForTT = move;
+                }
                 alpha = Math.max(alpha, eval_);
                 if (beta <= alpha) break;
             }
+
+            // TT STORE
+            let flag = 'EXACT';
+            if (maxEval <= alphaOrig) flag = 'UPPER';
+            else if (maxEval >= beta) flag = 'LOWER';
+            this._ttStore(this._currentHash, depth, maxEval, flag, bestMoveForTT);
+
             return maxEval;
         } else {
             let minEval = Infinity;
-            for (let i = 0; i < moves.length; i++) {
-                const state = this.makeMove(moves[i]);
-                const eval_ = this.minimax(depth - 1, alpha, beta, true, cpuColor, startTime);
-                this.undoMove(state);
-                minEval = Math.min(minEval, eval_);
+            for (const move of moves) {
+                const undo = this._applyMove(board, captures, move, lastMoveState);
+                const newLastMove = {
+                    from: { r: move.from.r, c: move.from.c },
+                    to: { r: move.to.r, c: move.to.c },
+                    pieceType: move.pieceType
+                };
+                const eval_ = this._minimax(board, captures, newLastMove, depth - 1, alpha, beta, true, cpuColor, startTime, positionHistory);
+                this._revertMove(board, captures, undo);
+
+                if (eval_ < minEval) {
+                    minEval = eval_;
+                    bestMoveForTT = move;
+                }
                 beta = Math.min(beta, eval_);
                 if (beta <= alpha) break;
             }
+
+            let flag = 'EXACT';
+            if (minEval <= alpha) flag = 'UPPER';
+            else if (minEval >= beta) flag = 'LOWER';
+            this._ttStore(this._currentHash, depth, minEval, flag, bestMoveForTT);
+
             return minEval;
         }
     }
 
-
-    // MOVIMIENTOS LEGALES
-
-    getAllLegalMoves(color) {
-        const moves = [];
-        for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                const p = board[r][c];
-                if (p && p.color === color) {
-                    const vm = getValidMoves(r, c, true);
-                    for (let i = 0; i < vm.length; i++) {
-                        const m = vm[i];
-                        const target = board[m.r][m.c];
-                        board[m.r][m.c] = p;
-                        board[r][c] = null;
-                        const inCheck = isKingInCheck(color);
-                        board[r][c] = p;
-                        board[m.r][m.c] = target;
-                        if (!inCheck) {
-                            moves.push({
-                                from: { r: r, c: c },
-                                to: { r: m.r, c: m.c },
-                                capture: !!target,
-                                pieceType: p.type
-                            });
-                        }
-                    }
-                }
-            }
-        }
-        return moves;
-    }
-
-
-    // SIMULACION
-
-    makeMove(move) {
+    
+    // MUTACIÓN CONTROLADA + HASH INCREMENTAL
+    _applyMove(board, captures, move, lastMoveState) {
         const piece = board[move.from.r][move.from.c];
         const target = board[move.to.r][move.to.c];
-        const state = {
-            from: move.from,
-            to: move.to,
-            piece: piece,
-            target: target,
-            promoted: piece.promoted,
-            kills: piece.kills,
-            hasMoved: piece.hasMoved,
-            capturedPawns: { white: capturedPawns.white, black: capturedPawns.black }
-        };
+        const prevHash = this._currentHash;
 
+        // 1. Quitar pieza de origen
+        this._currentHash ^= this._zobrist.piece[piece.type][piece.color][piece.promoted][move.from.r][move.from.c];
+
+        // 2. Quitar target de destino si existe
+        if (target) {
+            this._currentHash ^= this._zobrist.piece[target.type][target.color][target.promoted][move.to.r][move.to.c];
+        }
+
+        // Mutaciones al tablero
         board[move.to.r][move.to.c] = piece;
         board[move.from.r][move.from.c] = null;
 
-        // Captura de peon -> contadores
-        if (target && target.type === 'pawn') {
-            capturedPawns[piece.color]++;
-            if ((piece.type === 'bishop' || piece.type === 'rook') && !piece.promoted) {
+        // Enroque
+        let castlingRookFrom = null;
+        let castlingRookTo = null;
+        let castlingRookPiece = null;
+        let castlingRookHasMoved = null;
+
+        if (piece.type === 'king' && Math.abs(move.to.c - move.from.c) > 1) {
+            if (move.to.c === 8) {
+                castlingRookFrom = { r: move.to.r, c: 9 };
+                castlingRookTo = { r: move.to.r, c: 7 };
+                castlingRookPiece = board[move.to.r][9];
+                castlingRookHasMoved = board[move.to.r][9]?.hasMoved ?? false;
+
+                this._currentHash ^= this._zobrist.piece[castlingRookPiece.type][castlingRookPiece.color][castlingRookPiece.promoted][move.to.r][9];
+                this._currentHash ^= this._zobrist.piece[castlingRookPiece.type][castlingRookPiece.color][castlingRookPiece.promoted][move.to.r][7];
+
+                board[move.to.r][7] = board[move.to.r][9];
+                board[move.to.r][9] = null;
+                if (board[move.to.r][7]) board[move.to.r][7].hasMoved = true;
+            } else if (move.to.c === 1) {
+                castlingRookFrom = { r: move.to.r, c: 0 };
+                castlingRookTo = { r: move.to.r, c: 2 };
+                castlingRookPiece = board[move.to.r][0];
+                castlingRookHasMoved = board[move.to.r][0]?.hasMoved ?? false;
+
+                this._currentHash ^= this._zobrist.piece[castlingRookPiece.type][castlingRookPiece.color][castlingRookPiece.promoted][move.to.r][0];
+                this._currentHash ^= this._zobrist.piece[castlingRookPiece.type][castlingRookPiece.color][castlingRookPiece.promoted][move.to.r][2];
+
+                board[move.to.r][2] = board[move.to.r][0];
+                board[move.to.r][0] = null;
+                if (board[move.to.r][2]) board[move.to.r][2].hasMoved = true;
+            }
+        }
+
+        // En passant
+        let enPassantCaptured = null;
+        if (!target && piece.type === 'pawn' && Math.abs(move.to.c - move.from.c) === 1) {
+            const capturedRow = piece.color === 'white' ? move.to.r + 1 : move.to.r - 1;
+            if (capturedRow >= 0 && capturedRow < BOARD_SIZE) {
+                const ep = board[capturedRow][move.to.c];
+                if (ep && ep.type === 'pawn' && ep.color !== piece.color) {
+                    enPassantCaptured = { r: capturedRow, c: move.to.c, piece: ep };
+                    this._currentHash ^= this._zobrist.piece[ep.type][ep.color][ep.promoted][capturedRow][move.to.c];
+                    board[capturedRow][move.to.c] = null;
+                }
+            }
+        }
+
+        // Capturas de peón
+        const oldCapturesWhite = captures.white;
+        const oldCapturesBlack = captures.black;
+        const capturedIsPawn = target?.type === 'pawn' || enPassantCaptured?.piece?.type === 'pawn';
+
+        if (capturedIsPawn) {
+            this._currentHash ^= this._zobrist.captures[piece.color][captures[piece.color]];
+            captures[piece.color]++;
+            this._currentHash ^= this._zobrist.captures[piece.color][captures[piece.color]];
+
+            if (PAWN_KILLERS.includes(piece.type) && !piece.promoted) {
                 piece.kills = (piece.kills || 0) + 1;
-                if (piece.kills >= 3) {
+                if (piece.kills >= KILLS_TO_PROMOTE) {
                     piece.promoted = true;
                     piece.kills = 0;
                 }
             }
         }
 
-        // Reina -> Emperatriz
-        if (!piece.promoted && piece.type === 'queen' && target) {
+        // Promoción Reina
+        const oldPromoted = piece.promoted;
+        if (!piece.promoted && piece.type === 'queen' && (target || enPassantCaptured)) {
             piece.promoted = true;
         }
 
-        // Promocion por territorio (ultimas 2 filas)
-        if (!piece.promoted && (piece.type === 'pawn' || piece.type === 'knight' || piece.type === 'paladin')) {
-            if ((piece.color === 'white' && move.to.r <= 1) || (piece.color === 'black' && move.to.r >= 8)) {
-                piece.promoted = true;
-            }
+        // Promoción por territorio
+        const oldKills = piece.kills;
+        const oldHasMoved = piece.hasMoved;
+        if (!piece.promoted && ZONE_PROMOTABLES.includes(piece.type)) {
+            const inZone = (piece.color === 'white' && move.to.r <= PROMOTION_ZONE.white.maxRow) ||
+                           (piece.color === 'black' && move.to.r >= PROMOTION_ZONE.black.minRow);
+            if (inZone) piece.promoted = true;
         }
 
         piece.hasMoved = true;
-        return state;
+
+        // 3. Poner pieza en destino (con posible nuevo estado promoted)
+        this._currentHash ^= this._zobrist.piece[piece.type][piece.color][piece.promoted][move.to.r][move.to.c];
+
+        // 4. Cambiar turno en hash
+        const nextTurn = piece.color === 'white' ? 'black' : 'white';
+        this._currentHash ^= this._zobrist.turn[piece.color];
+        this._currentHash ^= this._zobrist.turn[nextTurn];
+
+        return {
+            from: move.from, to: move.to,
+            piece, target,
+            promoted: oldPromoted, kills: oldKills, hasMoved: oldHasMoved,
+            capturedPawnsWhite: oldCapturesWhite, capturedPawnsBlack: oldCapturesBlack,
+            enPassantCaptured,
+            castlingRookFrom, castlingRookTo, castlingRookPiece, castlingRookHasMoved,
+            prevHash
+        };
     }
 
-    undoMove(state) {
-        const piece = board[state.to.r][state.to.c];
-        board[state.from.r][state.from.c] = piece;
-        board[state.to.r][state.to.c] = state.target;
-        piece.promoted = state.promoted;
-        piece.kills = state.kills;
-        piece.hasMoved = state.hasMoved;
-        capturedPawns = state.capturedPawns;
+    _revertMove(board, captures, undo) {
+        // Restaurar hash
+        this._currentHash = undo.prevHash;
+
+        const piece = board[undo.to.r][undo.to.c];
+        board[undo.from.r][undo.from.c] = piece;
+        board[undo.to.r][undo.to.c] = undo.target;
+
+        piece.promoted = undo.promoted;
+        piece.kills = undo.kills;
+        piece.hasMoved = undo.hasMoved;
+
+        captures.white = undo.capturedPawnsWhite;
+        captures.black = undo.capturedPawnsBlack;
+
+        if (undo.enPassantCaptured) {
+            board[undo.enPassantCaptured.r][undo.enPassantCaptured.c] = undo.enPassantCaptured.piece;
+        }
+
+        if (undo.castlingRookFrom) {
+            board[undo.castlingRookFrom.r][undo.castlingRookFrom.c] = undo.castlingRookPiece;
+            board[undo.castlingRookTo.r][undo.castlingRookTo.c] = null;
+            if (undo.castlingRookPiece) {
+                undo.castlingRookPiece.hasMoved = undo.castlingRookHasMoved;
+            }
+        }
     }
 
-   
-    // EVALUACION
+    
+    // ORDENAMIENTO MVV-LVA + TT BEST MOVE
+    _orderMoves(moves, boardState, ttBestMove) {
+        // Si TT tiene un bestMove, ponerlo primero (killer heuristic)
+        if (ttBestMove) {
+            const idx = moves.findIndex(m =>
+                m.from.r === ttBestMove.from.r && m.from.c === ttBestMove.from.c &&
+                m.to.r === ttBestMove.to.r && m.to.c === ttBestMove.to.c
+            );
+            if (idx > 0) {
+                [moves[0], moves[idx]] = [moves[idx], moves[0]];
+            }
+        }
 
-    evaluate(forColor) {
+        moves.sort((a, b) => {
+            const capA = a.capture ? 1 : 0;
+            const capB = b.capture ? 1 : 0;
+            if (capA !== capB) return capB - capA;
+
+            if (a.capture && b.capture) {
+                const victimA = PIECE_VALUES[boardState[a.to.r][a.to.c]?.type] || 0;
+                const victimB = PIECE_VALUES[boardState[b.to.r][b.to.c]?.type] || 0;
+                const aggressorA = PIECE_VALUES[a.pieceType] || 0;
+                const aggressorB = PIECE_VALUES[b.pieceType] || 0;
+                const scoreA = victimA * 10 - aggressorA;
+                const scoreB = victimB * 10 - aggressorB;
+                return scoreB - scoreA;
+            }
+            return 0;
+        });
+    }
+
+    
+    // EVALUACIÓN
+    evaluate(boardState, captures, forColor) {
         let score = 0;
         const opponent = forColor === 'white' ? 'black' : 'white';
 
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
-                const p = board[r][c];
+                const p = boardState[r][c];
                 if (!p) continue;
 
-                let value = this.values[p.type] || 0;
-
-                // Bono por pieza promocionada
-                if (p.promoted) {
-                    if (p.type === 'pawn') value += 180;
-                    else value += 150;
-                }
-
-                // Bono centro (filas 3-6, cols 3-6)
-                if (r >= 3 && r <= 6 && c >= 3 && c <= 6) {
-                    value += 15;
-                }
-
-                // Bono avance peones
+                let value = PIECE_VALUES[p.type] || 0;
+                if (p.promoted) value += PROMOTION_BONUS[p.type] || 0;
+                if (r >= 3 && r <= 6 && c >= 3 && c <= 6) value += POSITION_BONUS.center;
                 if (p.type === 'pawn') {
-                    if (p.color === 'white') value += (9 - r) * 5;
-                    else value += r * 5;
+                    value += (p.color === 'white' ? (9 - r) : r) * POSITION_BONUS.pawnAdvance;
                 }
-
-                // Bono caballo/paladin cerca del centro en apertura
                 if ((p.type === 'knight' || p.type === 'paladin') && !p.promoted) {
-                    if (r >= 3 && r <= 6 && c >= 3 && c <= 6) value += 10;
+                    if (r >= 3 && r <= 6 && c >= 3 && c <= 6) value += POSITION_BONUS.knightCenter;
                 }
-
-                // Bono especial para Reina base: valor potencial a Emperatriz
                 if (p.type === 'queen' && !p.promoted) {
-                    const threatBonus = this.getQueenThreatBonus(r, c, p.color);
-                    value += threatBonus;
+                    value += this.getQueenThreatBonus(boardState, r, c, p.color);
                 }
-
-                // Penalizacion por pieza indefensa amenazada (simplificada)
-                if (p.color === forColor) {
-                    score += value;
-                } else {
-                    score -= value;
-                }
+                score += (p.color === forColor ? value : -value);
             }
         }
 
-        // Bono por capturas de peon acumuladas (caza para evolucion)
-        score += (capturedPawns[forColor] || 0) * 30;
-        score -= (capturedPawns[opponent] || 0) * 30;
-
+        score += (captures[forColor] || 0) * POSITION_BONUS.pawnKillProgress;
+        score -= (captures[opponent] || 0) * POSITION_BONUS.pawnKillProgress;
         return score;
     }
 
-   
-    // Bono Reina por valor potencial a Emperatriz
-
-    // La Reina puede ascender con CUALQUIER captura.
-    // Si tiene piezas enemigas alineadas, su valor se acerca al de Emperatriz.
-    getQueenThreatBonus(r, c, color) {
+    getQueenThreatBonus(boardState, r, c, color) {
         const opponent = color === 'white' ? 'black' : 'white';
         let safeCaptureBonus = 0;
         let escapeBonus = 0;
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
 
-        const dirs = [
-            [-1, 0], [1, 0], [0, -1], [0, 1],
-            [-1, -1], [-1, 1], [1, -1], [1, 1]
-        ];
-
-        // 1. Escanear amenazas de captura SEGURA (piezas enemigas alineadas no defendidas)
-        // Estas son capturas limpias: la Reina captura y sobrevive.
-        for (let i = 0; i < dirs.length; i++) {
-            const d = dirs[i];
+        for (const [dr, dc] of dirs) {
             let dist = 1;
             while (dist < BOARD_SIZE) {
-                const tr = r + d[0] * dist;
-                const tc = c + d[1] * dist;
+                const tr = r + dr * dist;
+                const tc = c + dc * dist;
                 if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE) break;
-
-                const p = board[tr][tc];
+                const p = boardState[tr][tc];
                 if (p) {
                     if (p.color === opponent) {
-                        const targetIsDefended = isSquareAttacked(tr, tc, opponent);
-                        const targetValue = this.values[p.type] || 0;
-
-                        if (!targetIsDefended) {
-                            // CAPTURA LIMPIA: Reina captura y sobrevive -> ascenso a Emperatriz
-                            safeCaptureBonus += 500 + targetValue * 0.5;
-                        } else if (p.type === 'king') {
-                            // La Reina puede capturar al Emperador (jaque mate)
-                            safeCaptureBonus += 8000;
-                        }
-                        // NOTA: No se penaliza capturas a piezas defendidas.
-                        // El minimax con suficiente profundidad ya detecta si el sacrificio
-                        // lleva a jaque mate (ej: Reina x Torre -> Rey recaptura -> Torre#).
-                        // Si la profundidad no alcanza a ver el mate, es preferible no arriesgar.
+                        const defended = isSquareAttackedState(boardState, tr, tc, opponent);
+                        const targetValue = PIECE_VALUES[p.type] || 0;
+                        if (!defended) safeCaptureBonus += 500 + targetValue * 0.5;
+                        else if (p.type === 'king') safeCaptureBonus += 8000;
                     }
                     break;
                 }
@@ -421,57 +613,40 @@ class ImperialCPU {
             }
         }
 
-        // 2. Verificar si la propia Reina esta amenazada
-        const queenIsAttacked = isSquareAttacked(r, c, opponent);
-        if (queenIsAttacked) {
+        const queenAttacked = isSquareAttackedState(boardState, r, c, opponent);
+        if (queenAttacked) {
             let safeSquares = 0;
             for (let dr = -1; dr <= 1; dr++) {
                 for (let dc = -1; dc <= 1; dc++) {
                     if (dr === 0 && dc === 0) continue;
                     const nr = r + dr, nc = c + dc;
                     if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
-                    if (!board[nr][nc] && !isSquareAttacked(nr, nc, opponent)) {
-                        safeSquares++;
-                    }
+                    if (!boardState[nr][nc] && !isSquareAttackedState(boardState, nr, nc, opponent)) safeSquares++;
                 }
             }
-
-            if (safeSquares === 0) {
-                // JAQUE sin escapatoria: penalizacion masiva para que minimax la evite
-                escapeBonus -= 3000;
-            } else {
-                // Amenazada pero puede escapar: penalizacion leve para incentivar huida
-                escapeBonus -= 200;
-            }
+            escapeBonus += (safeSquares === 0) ? POSITION_BONUS.queenTrapped : POSITION_BONUS.queenEscape;
         } else {
-            // Reina segura: bono por posicion solida
-            escapeBonus += 50;
+            escapeBonus += POSITION_BONUS.queenSafe;
         }
 
-        // 3. Bono por actividad
-        const p = board[r][c];
-        if (p && p.hasMoved) {
-            escapeBonus += 40;
-        }
+        const p = boardState[r][c];
+        if (p && p.hasMoved) escapeBonus += POSITION_BONUS.queenActivity;
 
-        // El bono de captura segura nunca superara el valor de Emperatriz
-        safeCaptureBonus = Math.min(safeCaptureBonus, 1300);
+        return Math.min(safeCaptureBonus, 1300) + escapeBonus;
+    }
+ 
+    // UTILIDADES
+    _cloneBoard(boardState) {
+        return boardState.map(row => row.map(p => p ? { ...p } : null));
+    }
 
-        return safeCaptureBonus + escapeBonus;
+    _moveToString(move) {
+        return `${getSquareNotation(move.from.r, move.from.c)} → ${getSquareNotation(move.to.r, move.to.c)}`;
     }
 }
 
-
-// PRESETS DE DIFICULTAD (ajustados por el usuario)
-
-const CPU_DIFFICULTY = {
-    facil:    { timeLimit: 300,  depthLimit: 2, randomness: 0.35 },
-    medio:    { timeLimit: 600,  depthLimit: 3, randomness: 0.15 },
-    dificil:  { timeLimit: 3500, depthLimit: 4, randomness: 0.05 },
-    maestro:  { timeLimit: 4000, depthLimit: 6, randomness: 0.0  }
-};
-
-function createCPU(difficultyKey) {
+// FACTORY
+export function createCPU(difficultyKey) {
     const config = CPU_DIFFICULTY[difficultyKey] || CPU_DIFFICULTY.medio;
     return new ImperialCPU(config);
 }

@@ -1,22 +1,92 @@
-body {
-    font-family: 'Inter', sans-serif;
-    background-color: #302e2b;
-    color: #e5e5e5;
+/* styles.css — Ajedrez Imperial 10x10 (Grid 14x14) */
+
+:root {
+    --sq-light: #f0d9b5;
+    --sq-dark: #b58863;
+    --sq-light-hl: #f6f669;
+    --sq-dark-hl: #f6f669;
+    --sq-last-light: #cdd26a;
+    --sq-last-dark: #aaa23b;
+    --sq-check: #ff0000;
+    --bg-body: #302e2b;
+    --bg-panel: #262421;
+    --bg-input: #302e2b;
+    --text-main: #e5e5e5;
+    --text-muted: #9ca3af;
 }
 
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+}
+
+/* ============================================================
+   TABLERO 14x14
+   ============================================================ */
 .board-container {
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    grid-template-rows: repeat(10, 1fr);
+    grid-template-columns: 30px 30px repeat(10, 1fr) 30px 30px;
+    grid-template-rows: 30px 30px repeat(10, 1fr) 30px 30px;
     width: 100%;
     max-width: 600px;
     aspect-ratio: 1 / 1;
     border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    border: 8px solid #262421;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    border: 8px solid var(--bg-panel);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
 }
 
+/* --- Perspectiva 2D --- */
+.perspective-2d {
+    transform: none;
+}
+
+/* --- Perspectiva 2.5D fija: rotateX 35° + rotateZ 60° --- */
+.perspective-2-5d {
+    transform: perspective(1200px) rotateX(35deg) rotateZ(60deg);
+    transform-style: preserve-3d;
+    margin-top: 16px;
+    gap: 0 !important;
+}
+
+.perspective-2-5d .square {
+    transform: translateZ(0);
+    margin: 0 !important;
+    border: none !important;
+    outline: none !important;
+}
+
+.perspective-2-5d .square:hover {
+    transform: translateZ(10px);
+    z-index: 10;
+}
+
+.perspective-2-5d .piece {
+    transform: translateZ(6px);
+    transition: transform 0.1s ease;
+}
+
+.perspective-2-5d .piece:active {
+    transform: translateZ(6px) scale(0.92);
+}
+
+/* --- Perspectiva 3D Elevado --- */
+.perspective-3d {
+    transform: perspective(1000px) rotateX(10deg);
+    transform-style: preserve-3d;
+    margin-top: 30px;
+}
+
+.perspective-3d .square {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ============================================================
+   CASILLAS
+   ============================================================ */
 .square {
     position: relative;
     display: flex;
@@ -26,52 +96,98 @@ body {
     height: 100%;
     cursor: pointer;
     user-select: none;
+    transition: background-color 0.15s ease;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
-.square.light { background-color: #ebecd0; }
-.square.dark { background-color: #739552; }
+.square.light { background-color: var(--sq-light); }
+.square.dark  { background-color: var(--sq-dark); }
 
-.square.selected::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(246, 246, 105, 0.5);
-    z-index: 10;
+/* ============================================================
+   ETIQUETAS CARDINALES
+   ============================================================ */
+.label-north,
+.label-south {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: default;
+    pointer-events: none;
+    user-select: none;
 }
 
-.square.last-move::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(246, 246, 105, 0.3);
-    z-index: 5;
+.label-west,
+.label-east {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: default;
+    pointer-events: none;
+    user-select: none;
 }
 
-.square.check::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(220, 38, 38, 0.45);
-    z-index: 8;
+.label-west {
+    transform: rotate(180deg);
 }
 
-.valid-move-dot {
-    width: 30%;
-    height: 30%;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 50%;
-    z-index: 20;
+/* ============================================================
+   BORDE VACÍO TRANSPARENTE
+   ============================================================ */
+.square.border-transparent {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: default;
+    pointer-events: none;
 }
 
-.valid-capture-ring {
-    width: 85%;
-    height: 85%;
-    border: 6px solid rgba(0, 0, 0, 0.2);
-    border-radius: 50%;
-    z-index: 20;
-    position: absolute;
+/* ============================================================
+   CELDAS DE BORDE / COORDENADAS / ESQUINAS
+   ============================================================ */
+.square.edge-cell {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: default;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--text-muted);
 }
 
+.square.edge-cell.corner-cell {
+    /* vacía intencionalmente */
+}
+
+/* ============================================================
+   PIEZAS
+   ============================================================ */
 .piece {
     width: 100%;
     height: 100%;
@@ -88,64 +204,88 @@ body {
     transform: scale(0.9);
 }
 
+.piece-image {
+    width: 82%;
+    height: 82%;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0px 3px 2px rgba(0, 0, 0, 0.4));
+    transition: filter 0.2s ease;
+}
+
+.piece:hover .piece-image {
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.5));
+}
+
 .piece .stars-badge {
     position: absolute;
-    bottom: 1px;
-    font-size: clamp(0.55rem, 1.1vw, 0.75rem);
+    bottom: 2px;
+    font-size: clamp(0.5rem, 1vw, 0.7rem);
     color: #eab308;
-    text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0,0,0,1);
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0,0,0,1);
     letter-spacing: -1px;
     pointer-events: none;
     z-index: 2;
 }
 
-.piece-image {
-    width: 80%;
-    height: 80%;
-    object-fit: contain;
+/* ============================================================
+   MARCADORES DE MOVIMIENTO
+   ============================================================ */
+.valid-move-dot {
+    width: 28%;
+    height: 28%;
+    background-color: rgba(0, 0, 0, 0.18);
+    border-radius: 50%;
+    z-index: 20;
     pointer-events: none;
-    filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.4));
+    animation: pulse-dot 2s ease-in-out infinite;
 }
 
-.game-wrapper {
-    display: grid;
-    grid-template-columns: auto auto;
-    gap: 0;
-    width: fit-content;
+.valid-capture-ring {
+    width: 82%;
+    height: 82%;
+    border: 5px solid rgba(220, 38, 38, 0.35);
+    border-radius: 50%;
+    z-index: 20;
+    position: absolute;
+    pointer-events: none;
+    animation: pulse-ring 2s ease-in-out infinite;
 }
 
-.sidebar-coords {
-    display: flex;
-    flex-direction: column;
-    width: 30px;
-    margin-right: 8px;
+@keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50%      { transform: scale(1.15); opacity: 1; }
 }
 
-.coord-y {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    color: #9ca3af;
+@keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%      { transform: scale(1.08); opacity: 0.9; }
+}
+
+/* ============================================================
+   COORDENADAS INTERNAS DE CASILLA
+   ============================================================ */
+.square-coord {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    font-size: 0.55rem;
     font-weight: bold;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
 }
+.square.show-coords .square-coord {
+    opacity: 0.65;
+}
+.square.light .square-coord { color: var(--sq-dark); }
+.square.dark  .square-coord { color: var(--sq-light); }
 
-.bottom-coords {
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    width: 600px;
-    margin-top: 8px;
-}
-
-.coord-x {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.8rem;
-    color: #9ca3af;
-    font-weight: bold;
-}
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 .vertical-label {
     writing-mode: vertical-rl;
@@ -154,88 +294,91 @@ body {
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    color: #9ca3af;
+    color: var(--text-muted);
     letter-spacing: 0.5rem;
     padding: 0 10px;
 }
 
-.square.light .coord-y, .square.light .coord-x {
-    color: #739552;
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+    .board-container {
+        max-width: 500px;
+    }
+    .perspective-2-5d {
+        margin-top: 12px;
+    }
 }
 
-.square.dark .coord-y, .square.dark .coord-x {
-    color: #ebecd0;
+@media (max-width: 640px) {
+    .board-container {
+        max-width: 100%;
+        border-width: 4px;
+        grid-template-columns: 22px 22px repeat(10, 1fr) 22px 22px;
+        grid-template-rows: 22px 22px repeat(10, 1fr) 22px 22px;
+    }
+    .square.edge-cell {
+        font-size: 0.55rem;
+    }
+    .label-north,
+    .label-south {
+        font-size: 0.6rem;
+        letter-spacing: 0.15em;
+    }
+    .label-west,
+    .label-east {
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+    }
+    .piece-image {
+        width: 75%;
+        height: 75%;
+    }
+    .piece .stars-badge {
+        font-size: 0.45rem;
+    }
+    .valid-move-dot {
+        width: 24%;
+        height: 24%;
+    }
+    .valid-capture-ring {
+        width: 72%;
+        height: 72%;
+        border-width: 3px;
+    }
+    .square-coord {
+        font-size: 0.45rem;
+    }
+    .perspective-2-5d {
+        margin-top: 8px;
+    }
 }
-
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Coordenadas internas opcionales */
-.square-coord {
-    position: absolute;
-    font-size: 0.6rem;
-    font-weight: bold;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
-}
-.square.show-coords .square-coord {
-    opacity: 0.7;
-}
-.square.light .square-coord { color: #739552; }
-.square.dark .square-coord { color: #ebecd0; }
-
-
 
 @media (max-width: 480px) {
-  .game-wrapper {
-    width: 100%;
-    grid-template-columns: auto 1fr; /* el tablero ocupa el resto */
-    gap: 0;
-  }
-
-  .sidebar-coords {
-    width: 18px;             /* más estrecho */
-    margin-right: 4px;
-  }
-  .coord-y {
-    font-size: 0.5rem;       /* texto más pequeño */
-  }
-
-  .board-container {
-    max-width: 100%;
-    width: 100%;
-    border-width: 4px;       /* borde más fino */
-  }
-
-  .bottom-coords {
-    width: 100%;             /* ya no es fijo */
-    margin-left: 0;          /* se alinea con el tablero */
-    padding-left: calc(18px + 4px); /* compensa el ancho del sidebar + margen */
-    box-sizing: border-box;
-  }
-  .coord-x {
-    font-size: 0.5rem;
-  }
-
-  /* Tamaños de piezas y marcadores */
-  .piece-image {
-    width: 70%;
-    height: 70%;
-  }
-  .piece .stars-badge {
-    font-size: 0.5rem;
-  }
-  .valid-move-dot {
-    width: 25%;
-    height: 25%;
-  }
-  .valid-capture-ring {
-    width: 70%;
-    height: 70%;
-    border-width: 4px;
-  }
-  .square .square-coord {
-    font-size: 0.5rem;       /* si las usas */
-  }
+    .board-container {
+        border-width: 3px;
+        grid-template-columns: 18px 18px repeat(10, 1fr) 18px 18px;
+        grid-template-rows: 18px 18px repeat(10, 1fr) 18px 18px;
+    }
+    .square.edge-cell {
+        font-size: 0.5rem;
+    }
+    .label-north,
+    .label-south {
+        font-size: 0.5rem;
+        letter-spacing: 0.1em;
+    }
+    .label-west,
+    .label-east {
+        font-size: 0.5rem;
+        letter-spacing: 0.05em;
+    }
+    .piece-image {
+        width: 70%;
+        height: 70%;
+    }
+    .piece .stars-badge {
+        font-size: 0.4rem;
+    }
 }
