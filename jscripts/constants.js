@@ -115,8 +115,10 @@ const PATHS = {
 export const PIECE_THEMES = {
     // --- Tema Clásico (piezas actuales) ---
     classic: {
-        label: 'Clásico',
-        perspective: '2d',
+        scales: {
+            default: 1 // Escala base normal
+            // Si en el clásico no hay cambios, solo dejas el default
+        },
         white: {
             peon:         PATHS.classic + 'b-peon-b.png',
             sargento:     PATHS.classic + 'b-sargento.png',
@@ -150,40 +152,89 @@ export const PIECE_THEMES = {
     },
 
     // --- Tema Chibi / Final Fantasy (preparado) ---
+
+    chibi: {
+        label: 'Chibi FF',
+        perspective: '2.5d', // (o '2d' según lo manejes)
+        scales: {
+            default: 1,        // Peones, sargentos, etc.
+            vigia: 1.5,       // 50% más grande
+            torre: 1.6,        // 60% más grande
+            caballo: 1.35,     // 35% más grande
+            caballero: 1.35,    // 35% más grande
+            emperador: 1.1,    // Por si quieres que el rey destaque un poco
+            emperatriz: 1.1    // La reina también un poco más grande
+        },
+        white: {
+            peon:         PATHS.chibi + 'w-peon_chibi-2D.png',
+            sargento:     PATHS.chibi + 'w-sargento_chibi-2D.png',
+            vigia:        PATHS.chibi + 'w-vigia_chibi-2D.png',
+            torre:        PATHS.chibi + 'w-torre_chibi-2D.png',
+            caballo:      PATHS.chibi + 'w-caballo_chibi-2D.png',
+            caballero:    PATHS.chibi + 'w-caballero_chibi-2D.png',
+            escudero:     PATHS.chibi + 'w-escudero_chibi-2D.png',
+            alfil:        PATHS.chibi + 'w-alfil_chibi-2D.png',
+            paladin:      PATHS.chibi + 'w-paladin_chibi-2D.png',
+            general_real: PATHS.chibi + 'w-general_chibi-2D.png',
+            reina:        PATHS.chibi + 'w-reina_chibi-2D.png',
+            emperatriz:   PATHS.chibi + 'w-emperatriz_chibi-2D.png',
+            emperador:    PATHS.chibi + 'w-emperador_chibi-2D.png'
+        },
+        black: {
+            peon:         PATHS.chibi + 'b-peon_chibi-2D.png',
+            sargento:     PATHS.chibi + 'b-sargento_chibi-2D.png',
+            vigia:        PATHS.chibi + 'b-vigia_chibi-2D.png',
+            torre:        PATHS.chibi + 'b-torre_chibi-2D.png',
+            caballo:      PATHS.chibi + 'b-caballo_chibi-2D.png',
+            caballero:    PATHS.chibi + 'b-caballero_chibi-2D.png',
+            escudero:     PATHS.chibi + 'b-escudero_chibi-2D.png',
+            alfil:        PATHS.chibi + 'b-alfil_chibi-2D.png',
+            paladin:      PATHS.chibi + 'b-paladin_chibi-2D.png',
+            general_real: PATHS.chibi + 'b-general_chibi-2D.png',
+            reina:        PATHS.chibi + 'b-reina_chibi-2D.png',
+            emperatriz:   PATHS.chibi + 'b-emperatriz_chibi-2D.png',
+            emperador:    PATHS.chibi + 'b-emperador_chibi-2D.png'
+        }
+    }
+        
+
+    // --- Tema Chibi / Final Fantasy (preparado) ---
+        /*
     chibi: {
         label: 'Chibi FF',
         perspective: '2.5d',
         white: {
-            peon:         PATHS.chibi + 'w-peon-chibi-128.png',
-            sargento:     PATHS.chibi + 'w-sargento-chibi-128.png',
-            vigia:        PATHS.chibi + 'w-vigia-chibi-128.png',
-            torre:        PATHS.chibi + 'w-torre-chibi-128.png',
-            caballo:      PATHS.chibi + 'w-caballo-chibi-128.png',
-            caballero:    PATHS.chibi + 'w-caballero-chibi-128.png',
-            escudero:     PATHS.chibi + 'w-escudero-chibi-128.png',
-            alfil:        PATHS.chibi + 'w-alfil-chibi-128.png',
-            paladin:      PATHS.chibi + 'w-paladin-chibi-128.png',
-            general_real: PATHS.chibi + 'w-general-chibi-128.png',
-            reina:        PATHS.chibi + 'w-reina-chibi-128.png',
-            emperatriz:   PATHS.chibi + 'w-emperatriz-chibi-128.png',
-            emperador:    PATHS.chibi + 'w-emperador-chibi-128.png'
+            peon:         PATHS.chibi + 'w-peon-Isometric-2D-chibi.png',
+            sargento:     PATHS.chibi + 'w-sargento-Isometric-2D-chibi.png',
+            vigia:        PATHS.chibi + 'w-vigia-Isometric-2D-chibi.png',
+            torre:        PATHS.chibi + 'w-torre-Isometric-2D-chibi.png',
+            caballo:      PATHS.chibi + 'w-caballo-Isometric-2D-chibi.png',
+            caballero:    PATHS.chibi + 'w-caballero-Isometric-2D-chibi.png',
+            escudero:     PATHS.chibi + 'w-escudero-Isometric-2D-chibi.png',
+            alfil:        PATHS.chibi + 'w-alfil-Isometric-2D-chibi.png',
+            paladin:      PATHS.chibi + 'w-paladin-Isometric-2D-chibi.png',
+            general_real: PATHS.chibi + 'w-general-Isometric-2D-chibi.png',
+            reina:        PATHS.chibi + 'w-reina-Isometric-2D-chibi.png',
+            emperatriz:   PATHS.chibi + 'w-emperatriz-Isometric-2D-chibi.png',
+            emperador:    PATHS.chibi + 'w-emperador-Isometric-2D-chibi.png'
         },
         black: {
-            peon:         PATHS.chibi + 'b-peon-chibi-128.png',
-            sargento:     PATHS.chibi + 'b-sargento-chibi-128.png',
-            vigia:        PATHS.chibi + 'b-vigia-chibi-128.png',
-            torre:        PATHS.chibi + 'b-torre-chibi-128.png',
-            caballo:      PATHS.chibi + 'b-caballo-chibi-128.png',
-            caballero:    PATHS.chibi + 'b-caballero-chibi-128.png',
-            escudero:     PATHS.chibi + 'b-escudero-chibi-128.png',
-            alfil:        PATHS.chibi + 'b-alfil-chibi-128.png',
-            paladin:      PATHS.chibi + 'b-paladin-chibi-128.png',
-            general_real: PATHS.chibi + 'b-general-chibi-128.png',
-            reina:        PATHS.chibi + 'b-reina-chibi-128.png',
-            emperatriz:   PATHS.chibi + 'b-emperatriz-chibi-128.png',
-            emperador:    PATHS.chibi + 'b-emperador-chibi-128.png'
+            peon:         PATHS.chibi + 'b-peon-Isometric-2D-chibi.png',
+            sargento:     PATHS.chibi + 'b-sargento-Isometric-2D-chibi.png',
+            vigia:        PATHS.chibi + 'b-vigia-Isometric-2D-chibi.png',
+            torre:        PATHS.chibi + 'b-torre-Isometric-2D-chibi.png',
+            caballo:      PATHS.chibi + 'b-caballo-Isometric-2D-chibi.png',
+            caballero:    PATHS.chibi + 'b-caballero-Isometric-2D-chibi.png',
+            escudero:     PATHS.chibi + 'b-escudero-Isometric-2D-chibi.png',
+            alfil:        PATHS.chibi + 'b-alfil-Isometric-2D-chibi.png',
+            paladin:      PATHS.chibi + 'b-paladin-Isometric-2D-chibi.png',
+            general_real: PATHS.chibi + 'b-general-Isometric-2D-chibi.png',
+            reina:        PATHS.chibi + 'b-reina-Isometric-2D-chibi.png',
+            emperatriz:   PATHS.chibi + 'b-emperatriz-Isometric-2D-chibi.png',
+            emperador:    PATHS.chibi + 'b-emperador-Isometric-2D-chibi.png'
         }
     }
+        */
 };
 
 // ============================================================

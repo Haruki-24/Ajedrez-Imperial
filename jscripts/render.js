@@ -5,6 +5,7 @@ import {
     BOARD_SIZE,
     COLOR_THEMES,
     PIECE_THEMES,
+    PIECES,
     getPieceImagePath,
     getSquareNotation
 } from './constants.js';
@@ -318,6 +319,23 @@ function createPieceElement(piece, theme) {
 
     const wrapper = document.createElement('div');
     wrapper.className = `piece ${piece.color}`;
+
+    // ============================================================
+    // ESCALA DINÁMICA CORREGIDA
+    // ============================================================
+    const scales = theme.scales || {};
+    
+    // Obtenemos el nombre de archivo correspondiente (base o promocionado)
+    const pieceInfo = PIECES[piece.type];
+    const scaleKey = pieceInfo 
+        ? (piece.promoted ? pieceInfo.promoted : pieceInfo.base) 
+        : piece.type;
+    
+    // Buscamos: 1) por nombre de imagen, 2) por tipo interno, 3) default
+    const pieceScale = scales[scaleKey] || scales[piece.type] || scales.default || 1;
+    
+    wrapper.style.setProperty('--piece-scale', pieceScale);
+    // ============================================================
 
     const img = document.createElement('img');
     const src = getPieceImagePath(piece, theme);
