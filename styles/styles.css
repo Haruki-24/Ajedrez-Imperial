@@ -39,6 +39,7 @@ body {
     transition: transform 0.4s ease, box-shadow 0.4s ease;
 }
 
+
 /* --- Perspectiva 2D --- */
 .perspective-2d {
     transform: none;
@@ -52,8 +53,10 @@ body {
     gap: 0 !important;
 }
 
+/* 1. La casilla DEBE preservar el 3D para pasárselo a la pieza */
 .perspective-2-5d .square {
     transform: translateZ(0);
+    transform-style: preserve-3d; /* <--- CRUCIAL: evita que la pieza se aplaste */
     margin: 0 !important;
     border: none !important;
     outline: none !important;
@@ -64,14 +67,33 @@ body {
     z-index: 10;
 }
 
+/* 2. La pieza contrarresta la rotación del tablero (Billboard 3D) */
 .perspective-2-5d .piece {
-    transform: translateZ(6px);
-    transition: transform 0.1s ease;
+    /* El origen se mantiene al centro, pero le damos preserve-3d */
+    transform-style: preserve-3d;
+    
+    /* LA MAGIA: 
+       - translateZ(16px): la levantamos para que los pies no atraviesen el piso.
+       - rotateZ(-60deg): deshace exactamente el giro del tablero.
+       - rotateX(-35deg): deshace la inclinación, haciendo que la pieza se ponga de pie.
+       (Puedes ajustar el translateZ si la pieza se ve muy hundida o muy flotante)
+    */
+    transform: translateZ(16px) rotateZ(-60deg) rotateX(-35deg);
+    transition: transform 0.15s ease;
 }
 
-.perspective-2-5d .piece:active {
-    transform: translateZ(6px) scale(0.92);
+/* 3. Ajuste de Hover (Levanta un poco más la pieza) */
+/* Y si quieres mantener el efecto de que crezcan un poquito más al hacer hover: */
+.perspective-2-5d .square:hover .piece-image {
+    /* calc() suma un 5% extra a la escala original que trajimos de constants.js */
+    transform: scale(calc(var(--piece-scale, 1) + 0.05)); 
 }
+
+/* 4. Ajuste de Clic / Active */
+.perspective-2-5d .piece:active {
+    transform: translateZ(16px) rotateZ(-60deg) rotateX(-35deg) scale(0.92);
+}
+
 
 /* --- Perspectiva 3D Elevado --- */
 .perspective-3d {
@@ -205,12 +227,14 @@ body {
 }
 
 .piece-image {
-    width: 82%;
-    height: 82%;
+    /* Tus estilos actuales como width, height, etc. */
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    pointer-events: none;
-    filter: drop-shadow(0px 3px 2px rgba(0, 0, 0, 0.4));
-    transition: filter 0.2s ease;
+
+    /* NUEVO: Aplicamos la escala basada en la variable de JavaScript */
+    transform: scale(var(--piece-scale, 1));
+    transform-origin: bottom center; /* Asegura que crezcan hacia arriba y no se salgan de la casilla por debajo */
 }
 
 .piece:hover .piece-image {
@@ -250,6 +274,11 @@ body {
     position: absolute;
     pointer-events: none;
     animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.perspective-2-5d .valid-move-dot,
+.perspective-2-5d .valid-capture-ring {
+    transform: translateZ(1px);
 }
 
 @keyframes pulse-dot {
