@@ -11,10 +11,7 @@ import {
     MOVEMENT_VECTORS, getPieceSymbol, getSquareNotation
 } from './constants.js';
 
-// ============================================================
 // HELPER DE TRADUCCIÓN
-// ============================================================
-
 function msg(key, ...args) {
     const lang = getCurrentLang();
     const t = TRANSLATIONS[lang]?.messages;
@@ -23,9 +20,7 @@ function msg(key, ...args) {
     return typeof val === 'function' ? val(...args) : val;
 }
 
-// ============================================================
 // ESTADO GLOBAL DEL JUEGO (UI únicamente)
-// ============================================================
 let board = [];
 let turn = 'white';
 let selectedPiece = null;
@@ -37,10 +32,7 @@ let capturedPawns = { white: 0, black: 0 };
 let gameMode = 'pvc';
 let cpuThinking = false;
 
-// ============================================================
 // 1. INICIALIZACIÓN
-// ============================================================
-
 function initBoard() {
     board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
     for (let c = 0; c < BOARD_SIZE; c++) {
@@ -82,10 +74,7 @@ function afterMove() {
     updateTurnText(turn);
 }
 
-// ============================================================
 // 2. CONTROL DE PARTIDA
-// ============================================================
-
 export function resetGame() {
     initBoard();
     turn = 'white';
@@ -110,10 +99,7 @@ export function changeGameMode(mode) {
     resetGame();
 }
 
-// ============================================================
 // 3. INTERACCIÓN CON EL TABLERO
-// ============================================================
-
 export function handleSquareClick(r, c) {
     if (cpuThinking || turn === 'none') return;
     if (gameMode === 'pvc' && turn === 'black') return;
@@ -136,10 +122,7 @@ export function handleSquareClick(r, c) {
     renderBoard(getGameState());
 }
 
-// ============================================================
 // 4. EJECUCIÓN DE MOVIMIENTOS
-// ============================================================
-
 export function executeMove(sr, sc, tr, tc) {
     const piece = board[sr][sc];
     if (!piece) return;
@@ -286,10 +269,7 @@ export function undoMove() {
     showMessage(msg('undoDone'));
 }
 
-// ============================================================
 // 5. CAMBIO DE TURNO Y CONDICIONES DE FIN
-// ============================================================
-
 export function switchTurn() {
     if (turn === 'none') return;
     turn = turn === 'white' ? 'black' : 'white';
@@ -319,10 +299,7 @@ export function switchTurn() {
     }
 }
 
-// ============================================================
 // 6. MOTOR DE MOVIMIENTOS (FUNCIONES PURAS — OPTIMIZADAS)
-// ============================================================
-
 export function getRawMoves(boardState, r, c, ignoreCastling = false, lastMoveState = null) {
     const piece = boardState[r][c];
     if (!piece) return [];
@@ -542,10 +519,7 @@ function simulateMove(boardState, sr, sc, tr, tc, lastMoveState = null) {
     return sim;
 }
 
-// ============================================================
 // 7. ATAQUES, JAQUE, JAQUE MATE, AHOGADO (OPTIMIZADO)
-// ============================================================
-
 export function isSquareAttackedState(boardState, r, c, byColor, lastMoveState = null) {
     const lm = lastMoveState || lastMove;
 
@@ -603,11 +577,7 @@ export function isSquareAttackedState(boardState, r, c, byColor, lastMoveState =
     }
 
     // 5. Caballero Imperial (caballo promovido: + ortogonal 1)
-    // Nota: un caballero promovido ataca como rey. Ya cubierto por el loop de Rey/Paladín arriba
-    // porque el Caballero Imperial tiene movimiento de rey. Pero espera: el caballo promovido
-    // no es 'paladin', es 'knight' con promoted=true. Su ataque ortogonal 1 casilla NO está
-    // cubierto arriba porque solo chequeamos type==='king' || type==='paladin'.
-    // FIX: verificar caballos promovidos en las 4 ortogonales.
+    // Nota: verificar caballos promovidos en las 4 ortogonales.
     for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
         const nr = r + dr, nc = c + dc;
         if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
@@ -617,7 +587,7 @@ export function isSquareAttackedState(boardState, r, c, byColor, lastMoveState =
     }
 
     // 6. General Imperial (paladín promovido: diagonales hasta 2)
-    // El loop de arriba solo cubre Paladín base (1 casilla). El promovido tiene diagonales 2.
+    // Nota: Verificar Paladin promovido en diagonales.
     for (const [dr, dc] of MOVEMENT_VECTORS.bishop.directions) {
         for (let dist = 1; dist <= 2; dist++) {
             const nr = r + dr * dist;
@@ -672,10 +642,7 @@ function hasAnyLegalMove(boardState, color, lastMoveState = null) {
     return false;
 }
 
-// ============================================================
 // 8. TODOS LOS MOVIMIENTOS LEGALES (para CPU)
-// ============================================================
-
 export function getAllLegalMovesState(boardState, color, lastMoveState = null) {
     const moves = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -698,10 +665,7 @@ export function getAllLegalMovesState(boardState, color, lastMoveState = null) {
     return moves;
 }
 
-// ============================================================
 // 9. UTILIDADES
-// ============================================================
-
 function inBounds(r, c) {
     return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
 }
@@ -736,10 +700,7 @@ export function setCpuThinking(val) {
     cpuThinking = val;
 }
 
-// ============================================================
 // 10. EXPORTS
-// ============================================================
-
 export {
     board,
     turn,
