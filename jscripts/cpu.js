@@ -21,9 +21,7 @@ import {
     isSquareAttackedState
 } from './game.js';
 
-
 // CLASE IMPERIAL CPU
-
 class ImperialCPU {
     constructor(config = {}) {
         this.timeLimit = config.timeLimit || 1000;
@@ -43,9 +41,8 @@ class ImperialCPU {
         this._currentHash = 0n;
     }
 
-    
-    // ZOBRIST HASHING: Generacion de tablas para mejorar procesamiento de posiciones y detección de repeticiones
 
+    // ZOBRIST HASHING: Generacion de tablas para mejorar procesamiento de posiciones y detección de repeticiones
     _initZobrist() {
         if (this._zobrist) return;
         const rand64 = () => {
@@ -91,7 +88,7 @@ class ImperialCPU {
         return hash;
     }
 
-    
+
     // TABLA DE TRANSPOSICIONES
     enableTranspositionTable(maxSize = 500000) {
         this.transpositionTable = new Map();
@@ -118,7 +115,7 @@ class ImperialCPU {
         }
     }
 
-    
+
     // API PÚBLICA
     getBestMove(boardState, color, capturedPawnsState = { white: 0, black: 0 }, lastMoveState = null, positionHistory = []) {
         this._initZobrist();
@@ -202,7 +199,6 @@ class ImperialCPU {
     setOpeningBook(book) { this.openingBook = book; }
     setExternalEvaluator(fn) { this.externalEvaluator = fn; }
 
-    
     // DETECCIÓN DE REPETICIÓN
     _countRepetitions(positionKey, historySet) {
         let count = 0;
@@ -212,7 +208,6 @@ class ImperialCPU {
         return count;
     }
 
-    
     // MINIMAX ROOT
     _minimaxRoot(board, captures, lastMoveState, color, depth, startTime, positionHistory) {
         const moves = getAllLegalMovesState(board, color, lastMoveState);
@@ -276,7 +271,7 @@ class ImperialCPU {
         };
     }
 
-    
+
     // MINIMAX CON PODA ALFA-BETA + TT
     _minimax(board, captures, lastMoveState, depth, alpha, beta, isMaximizing, cpuColor, startTime, positionHistory) {
         const currentColor = isMaximizing ? cpuColor : (cpuColor === 'white' ? 'black' : 'white');
@@ -373,7 +368,6 @@ class ImperialCPU {
         }
     }
 
-    
     // MUTACIÓN CONTROLADA + HASH INCREMENTAL
     _applyMove(board, captures, move, lastMoveState) {
         const piece = board[move.from.r][move.from.c];
@@ -523,7 +517,7 @@ class ImperialCPU {
         }
     }
 
-    
+
     // ORDENAMIENTO MVV-LVA + TT BEST MOVE
     _orderMoves(moves, boardState, ttBestMove) {
         // Si TT tiene un bestMove, ponerlo primero (killer heuristic)
@@ -555,7 +549,7 @@ class ImperialCPU {
         });
     }
 
-    
+
     // EVALUACIÓN
     evaluate(boardState, captures, forColor) {
         let score = 0;
@@ -634,7 +628,8 @@ class ImperialCPU {
 
         return Math.min(safeCaptureBonus, 1300) + escapeBonus;
     }
- 
+
+
     // UTILIDADES
     _cloneBoard(boardState) {
         return boardState.map(row => row.map(p => p ? { ...p } : null));
