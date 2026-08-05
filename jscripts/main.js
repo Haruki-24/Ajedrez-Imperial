@@ -12,16 +12,17 @@ import {
 
 import { createCPU } from './cpu.js';
 import { switchLanguage, updateTurnText } from './translate.js';
+import { PIECE_THEMES } from './constants.js';
 
-// ============================================================
-// CONFIGURACIÓN GLOBAL
-// ============================================================
+
+/* Configuracion global */
+
 window.cpuDifficulty = 'medio';
 window.switchLanguage = switchLanguage;
 
-// ============================================================
-// INICIALIZACIÓN
-// ============================================================
+
+/* Inicialización */
+
 
 document.addEventListener('DOMContentLoaded', () => {
     try {
@@ -29,15 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
         bindUIEvents();
         switchLanguage('es');
         resetGame();
-        console.log('✅ Ajedrez Imperial 10x10 inicializado [ES6 Modular]');
+        console.log(' Ajedrez Imperial inicializado [ES6 Modular]');
     } catch (err) {
-        console.error('❌ Error inicializando el juego:', err);
+        console.error('Error inicializando el juego:', err);
     }
 });
 
-// ============================================================
-// CLICK EN CASILLA
-// ============================================================
+
+/* Click en tablero */
+
 
 function onSquareClick(r, c) {
     try {
@@ -46,13 +47,13 @@ function onSquareClick(r, c) {
             triggerCpuTurn();
         }
     } catch (err) {
-        console.error('❌ Error en onSquareClick:', err);
+        console.error('Error en onSquareClick:', err);
     }
 }
 
-// ============================================================
-// TURNO CPU
-// ============================================================
+
+/* TURNO CPU */
+
 
 function triggerCpuTurn() {
     setCpuThinking(true);
@@ -68,7 +69,7 @@ function triggerCpuTurn() {
                 showMessage('La CPU no encuentra movimiento. ¡Tablas!', -1);
             }
         } catch (err) {
-            console.error('❌ Error en CPU:', err);
+            console.error('Error en CPU:', err);
             showMessage('Error del motor CPU.', 3000);
         } finally {
             setCpuThinking(false);
@@ -76,9 +77,9 @@ function triggerCpuTurn() {
     }, 400);
 }
 
-// ============================================================
+
 // EVENTOS UI
-// ============================================================
+
 
 function bindUIEvents() {
     const safeAdd = (id, event, handler) => {
@@ -104,14 +105,7 @@ function bindUIEvents() {
                 btn.classList.add('bg-[#4b4843]', 'hover:bg-[#5c5852]');
             }
         }
-        // Re-renderizar con estado actual
-        try {
-            const gs = (typeof getGameState === 'function') ? getGameState() : null;
-            if (gs) renderBoard(gs);
-            else console.warn('[main.js] getGameState no disponible');
-        } catch (e) {
-            console.error('[main.js] Error re-renderizando:', e);
-        }
+        safeRender();
     });
 
     safeAdd('lang-selector', 'change', (e) => {
@@ -132,8 +126,21 @@ function bindUIEvents() {
         safeRender();
     });
 
+    // Tema de piezas: sincroniza perspectiva automáticamente
     safeAdd('piece-theme', 'change', (e) => {
-        setPieceTheme(e.target.value);
+        const themeName = e.target.value;
+        setPieceTheme(themeName);
+
+        // Si el tema define una perspectiva preferida, la sincronizamos
+        const themeData = PIECE_THEMES[themeName];
+        if (themeData && themeData.perspective) {
+            const perspectiveSelect = document.getElementById('perspective');
+            if (perspectiveSelect) {
+                perspectiveSelect.value = themeData.perspective;
+                setPerspective(themeData.perspective);
+            }
+        }
+
         safeRender();
     });
 
