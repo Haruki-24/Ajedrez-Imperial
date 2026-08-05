@@ -2,20 +2,12 @@
  * constants.js
  * Módulo centralizado de constantes para Ajedrez Imperial 10x10
  * Arquitectura ES6 - Temas: Classic | Chibi/FF
- * 
- * Estructura del repositorio:
- *   assets/docs/     → Documentos PDF
- *   assets/icons/    → Iconos de piezas (classic)
- *   assets/img/      → Imágenes generales / fondos / portadas
- *   assets/chibi/    → Sprites chibi/FF (preparado)
- *   jscripts/        → Módulos JS
- *   styles/          → CSS
- *   index.html       → Raíz
+ * Compatible con game.js legacy.
  */
 
-// ============================================================
-// 1. CONFIGURACIÓN DEL TABLERO
-// ============================================================
+
+// CONFIGURACIÓN DEL TABLERO
+
 export const BOARD_SIZE = 10;
 
 // Filas de promoción por territorio (últimas 2 filas enemigas)
@@ -24,10 +16,10 @@ export const PROMOTION_ZONE = {
     black: { minRow: 8 }   // filas 8 y 9
 };
 
-// ============================================================
-// 2. DEFINICIÓN DE PIEZAS
-//    Mapeo tipo-interno → nombres de archivo e información
-// ============================================================
+
+// DEFINICIÓN DE PIEZAS
+// Mapeo tipo-interno → nombres de archivo e información
+
 export const PIECES = {
     pawn:     { base: 'peon',      promoted: 'sargento',      nameES: 'Peón',      nameEN: 'Pawn' },
     rook:     { base: 'vigia',     promoted: 'torre',         nameES: 'Vigía',     nameEN: 'Lookout' },
@@ -47,9 +39,10 @@ export const ZONE_PROMOTABLES = ['pawn', 'knight', 'paladin'];
 // Capturas necesarias para ascender (Vigía/Escudero)
 export const KILLS_TO_PROMOTE = 3;
 
-// ============================================================
-// 3. TEMAS DE COLOR DEL TABLERO
-// ============================================================
+
+
+// TEMAS DE COLOR DEL TABLERO (modo clásico)
+
 export const COLOR_THEMES = {
     classic: {
         light: '#f0d9b5',
@@ -82,8 +75,8 @@ export const COLOR_THEMES = {
         label: 'Madera'
     },
     dark: {
-        light: '#4a4a4a',
-        dark: '#2a2a2a',
+        light: '#c5c4c4',
+        dark: '#5e5d5d',
         lightHighlight: '#6a6a6a',
         darkHighlight: '#4a4a4a',
         lastMoveLight: '#5a5a5a',
@@ -91,7 +84,6 @@ export const COLOR_THEMES = {
         check: '#ff4444',
         label: 'Oscuro'
     },
-    // Nuevo: tema Final Fantasy (preparado)
     ff_crystal: {
         light: '#e0f7fa',
         dark: '#006064',
@@ -104,20 +96,23 @@ export const COLOR_THEMES = {
     }
 };
 
-// ============================================================
-// 4. TEMAS DE PIEZAS (rutas relativas a index.html)
-// ============================================================
+
+// TEMAS DE PIEZAS (rutas relativas a index.html)
+
 const PATHS = {
     classic: 'assets/icons/',
-    chibi:   'assets/chibi/'   // preparado para sprites FF/chibi
+    chibi:   'assets/chibi/'   
 };
 
 export const PIECE_THEMES = {
-    // --- Tema Clásico (piezas actuales) ---
+    // --- Tema Clásico ---
     classic: {
+        label: 'Clásico',
+        perspective: '2d',
+        boardType: 'color',
+        transformOrigin: 'center center',
         scales: {
-            default: 1 // Escala base normal
-            // Si en el clásico no hay cambios, solo dejas el default
+            default: 0.8
         },
         white: {
             peon:         PATHS.classic + 'b-peon-b.png',
@@ -151,19 +146,39 @@ export const PIECE_THEMES = {
         }
     },
 
-    // --- Tema Chibi / Final Fantasy (preparado) ---
-
+    // --- Tema Chibi / Final Fantasy ---
     chibi: {
         label: 'Chibi FF',
-        perspective: '2.5d', // (o '2d' según lo manejes)
+        perspective: '2.5d',
+        boardType: 'texture',
+        transformOrigin: 'bottom center',
         scales: {
-            default: 1,        // Peones, sargentos, etc.
-            vigia: 1.5,       // 50% más grande
-            torre: 1.6,        // 60% más grande
-            caballo: 1.35,     // 35% más grande
-            caballero: 1.35,    // 35% más grande
-            emperador: 1.1,    // Por si quieres que el rey destaque un poco
-            emperatriz: 1.1    // La reina también un poco más grande
+            default: 1,
+            vigia: 1.5,
+            torre: 1.6,
+            caballo: 1.35,
+            caballero: 1.35,
+            emperador: 1.1,
+            emperatriz: 1.1
+        },
+        // Texturas de baldosa para el tablero
+        tiles: {
+            light: [
+                'assets/board-themes/stone-light-2.png'
+            ],
+            dark: [
+                'assets/board-themes/stone-dark-2.png'
+            ],
+            fallbackLight: '#c4b59d',
+            fallbackDark: '#4a4a4a'
+        },
+        // Colores para highlights (selección, último mov, jaque)
+        highlightColors: {
+            lightHighlight: '#f6f669',
+            darkHighlight:  '#f6f669',
+            lastMoveLight:  '#cdd26a',
+            lastMoveDark:   '#aaa23b',
+            check:          '#ff0000'
         },
         white: {
             peon:         PATHS.chibi + 'w-peon_chibi-2D.png',
@@ -196,50 +211,11 @@ export const PIECE_THEMES = {
             emperador:    PATHS.chibi + 'b-emperador_chibi-2D.png'
         }
     }
-        
-
-    // --- Tema Chibi / Final Fantasy (preparado) ---
-        /*
-    chibi: {
-        label: 'Chibi FF',
-        perspective: '2.5d',
-        white: {
-            peon:         PATHS.chibi + 'w-peon-Isometric-2D-chibi.png',
-            sargento:     PATHS.chibi + 'w-sargento-Isometric-2D-chibi.png',
-            vigia:        PATHS.chibi + 'w-vigia-Isometric-2D-chibi.png',
-            torre:        PATHS.chibi + 'w-torre-Isometric-2D-chibi.png',
-            caballo:      PATHS.chibi + 'w-caballo-Isometric-2D-chibi.png',
-            caballero:    PATHS.chibi + 'w-caballero-Isometric-2D-chibi.png',
-            escudero:     PATHS.chibi + 'w-escudero-Isometric-2D-chibi.png',
-            alfil:        PATHS.chibi + 'w-alfil-Isometric-2D-chibi.png',
-            paladin:      PATHS.chibi + 'w-paladin-Isometric-2D-chibi.png',
-            general_real: PATHS.chibi + 'w-general-Isometric-2D-chibi.png',
-            reina:        PATHS.chibi + 'w-reina-Isometric-2D-chibi.png',
-            emperatriz:   PATHS.chibi + 'w-emperatriz-Isometric-2D-chibi.png',
-            emperador:    PATHS.chibi + 'w-emperador-Isometric-2D-chibi.png'
-        },
-        black: {
-            peon:         PATHS.chibi + 'b-peon-Isometric-2D-chibi.png',
-            sargento:     PATHS.chibi + 'b-sargento-Isometric-2D-chibi.png',
-            vigia:        PATHS.chibi + 'b-vigia-Isometric-2D-chibi.png',
-            torre:        PATHS.chibi + 'b-torre-Isometric-2D-chibi.png',
-            caballo:      PATHS.chibi + 'b-caballo-Isometric-2D-chibi.png',
-            caballero:    PATHS.chibi + 'b-caballero-Isometric-2D-chibi.png',
-            escudero:     PATHS.chibi + 'b-escudero-Isometric-2D-chibi.png',
-            alfil:        PATHS.chibi + 'b-alfil-Isometric-2D-chibi.png',
-            paladin:      PATHS.chibi + 'b-paladin-Isometric-2D-chibi.png',
-            general_real: PATHS.chibi + 'b-general-Isometric-2D-chibi.png',
-            reina:        PATHS.chibi + 'b-reina-Isometric-2D-chibi.png',
-            emperatriz:   PATHS.chibi + 'b-emperatriz-Isometric-2D-chibi.png',
-            emperador:    PATHS.chibi + 'b-emperador-Isometric-2D-chibi.png'
-        }
-    }
-        */
 };
 
-// ============================================================
-// 5. CONFIGURACIÓN CPU (dificultades)
-// ============================================================
+
+// CONFIGURACIÓN CPU (dificultades)
+
 export const CPU_DIFFICULTY = {
     facil:    { timeLimit: 300,  depthLimit: 2, randomness: 0.35, label: 'Fácil' },
     medio:    { timeLimit: 800,  depthLimit: 3, randomness: 0.15, label: 'Medio' },
@@ -247,11 +223,11 @@ export const CPU_DIFFICULTY = {
     maestro:  { timeLimit: 5000, depthLimit: 6, randomness: 0.00, label: 'Maestro' }
 };
 
-// ============================================================
-// 6. VALORES DE PIEZAS PARA EVALUACIÓN (motor CPU)
-//    Usa SIEMPRE los tipos base; el bonus por promoción
-//    se aplica dinámicamente en la evaluación.
-// ============================================================
+
+// VALORES DE PIEZAS PARA EVALUACIÓN (motor CPU)
+// Usa SIEMPRE los tipos base; el bonus por promoción
+// se aplica dinámicamente en la evaluación.
+
 export const PIECE_VALUES = {
     pawn:     100,
     knight:   350,
@@ -285,9 +261,9 @@ export const POSITION_BONUS = {
     pawnKillProgress: 30  // por cada peón capturado acumulado
 };
 
-// ============================================================
-// 7. TRADUCCIONES (centralizadas)
-// ============================================================
+
+// TRADUCCIONES (centralizadas)
+
 export const TRANSLATIONS = {
     es: {
         title: "Ajedrez Imperial",
@@ -417,9 +393,9 @@ export const TRANSLATIONS = {
     }
 };
 
-// ============================================================
-// 8. CONFIGURACIÓN DE MOVIMIENTOS (vectores por pieza)
-// ============================================================
+
+// CONFIGURACIÓN DE MOVIMIENTOS (vectores por pieza)
+
 export const MOVEMENT_VECTORS = {
     // Peón: avanza 1, captura diagonal 1
     pawn: {
@@ -446,18 +422,18 @@ export const MOVEMENT_VECTORS = {
     ], slide: false }
 };
 
-// ============================================================
-// 9. POSICIONES INICIALES (back row 10x10)
-// ============================================================
+
+// POSICIONES INICIALES (back row 10x10)
+
 export const STARTING_BACK_ROW = [
     'rook', 'knight', 'bishop', 'paladin', 'queen',
     'king',
     'paladin', 'bishop', 'knight', 'rook'
 ];
 
-// ============================================================
-// 10. AYUDAS DE FORMATO
-// ============================================================
+
+// AYUDAS DE FORMATO
+
 
 /**
  * Obtiene la ruta de imagen para una pieza según su tema
@@ -501,3 +477,18 @@ export function getPieceSymbol(piece, c) {
         default:        return '';
     }
 }
+
+// TEXTURAS DE TABLERO (fallback global)
+
+export const BOARD_TILES = {
+    stone: {
+        light: [
+            'assets/board-themes/stone-light-1.png',
+            'assets/board-themes/stone-light-2.png'
+        ],
+        dark: [
+            'assets/board-themes/stone-dark-1.png',
+            'assets/board-themes/stone-dark-2.png'
+        ]
+    }
+};
