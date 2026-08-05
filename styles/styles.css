@@ -23,9 +23,7 @@ body {
     padding: 0;
 }
 
-/* ============================================================
-   TABLERO 14x14
-   ============================================================ */
+/* --- TABLERO 14x14 ---*/
 .board-container {
     display: grid;
     grid-template-columns: 30px 30px repeat(10, 1fr) 30px 30px;
@@ -56,10 +54,11 @@ body {
 /* 1. La casilla DEBE preservar el 3D para pasárselo a la pieza */
 .perspective-2-5d .square {
     transform: translateZ(0);
-    transform-style: preserve-3d; /* <--- CRUCIAL: evita que la pieza se aplaste */
+    transform-style: preserve-3d; /* evita que la pieza se aplaste */
     margin: 0 !important;
     border: none !important;
     outline: none !important;
+    /* El solapamiento anti-gap lo maneja el div tileWrap inline en JS */
 }
 
 .perspective-2-5d .square:hover {
@@ -72,18 +71,17 @@ body {
     /* El origen se mantiene al centro, pero le damos preserve-3d */
     transform-style: preserve-3d;
     
-    /* LA MAGIA: 
-       - translateZ(16px): la levantamos para que los pies no atraviesen el piso.
+    /* - translateZ(16px): la levantamos para que los pies no atraviesen el piso.
        - rotateZ(-60deg): deshace exactamente el giro del tablero.
        - rotateX(-35deg): deshace la inclinación, haciendo que la pieza se ponga de pie.
-       (Puedes ajustar el translateZ si la pieza se ve muy hundida o muy flotante)
+       (Nota: si la pieza se ve muy hundida o muy flotante ajustar el translateZ)
     */
     transform: translateZ(16px) rotateZ(-60deg) rotateX(-35deg);
     transition: transform 0.15s ease;
 }
 
-/* 3. Ajuste de Hover (Levanta un poco más la pieza) */
-/* Y si quieres mantener el efecto de que crezcan un poquito más al hacer hover: */
+/* 3. Ajuste de Hover  */
+/* efecto para que las piezas crezcan al hacer hover */
 .perspective-2-5d .square:hover .piece-image {
     /* calc() suma un 5% extra a la escala original que trajimos de constants.js */
     transform: scale(calc(var(--piece-scale, 1) + 0.05)); 
@@ -106,9 +104,35 @@ body {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* ============================================================
-   CASILLAS
-   ============================================================ */
+/* Casillas con textura: overlay semitransparente al iluminar */
+.perspective-2-5d .square.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(246, 246, 105, 0.45); /* Amarillo traslúcido */
+    pointer-events: none;
+    z-index: 1;
+}
+
+.perspective-2-5d .square.last-move::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(205, 210, 106, 0.4); /* Verde/Amarillo traslúcido */
+    pointer-events: none;
+    z-index: 1;
+}
+
+.perspective-2-5d .square.in-check::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 0, 0, 0.65); /* Rojo traslúcido para Jaque */
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* --- CASILLAS --- */
 .square {
     position: relative;
     display: flex;
@@ -121,14 +145,13 @@ body {
     transition: background-color 0.15s ease;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    box-sizing: border-box;
 }
 
 .square.light { background-color: var(--sq-light); }
 .square.dark  { background-color: var(--sq-dark); }
 
-/* ============================================================
-   ETIQUETAS CARDINALES
-   ============================================================ */
+/* --- ETIQUETAS CARDINALES --- */
 .label-north,
 .label-south {
     display: flex;
@@ -173,9 +196,7 @@ body {
     transform: rotate(180deg);
 }
 
-/* ============================================================
-   BORDE VACÍO TRANSPARENTE
-   ============================================================ */
+/* --- BORDE VACÍO TRANSPARENTE --- */
 .square.border-transparent {
     background: transparent !important;
     border: none !important;
@@ -185,9 +206,7 @@ body {
     pointer-events: none;
 }
 
-/* ============================================================
-   CELDAS DE BORDE / COORDENADAS / ESQUINAS
-   ============================================================ */
+/* --- CELDAS DE BORDE / COORDENADAS / ESQUINAS --- */
 .square.edge-cell {
     background: transparent !important;
     border: none !important;
@@ -207,9 +226,8 @@ body {
     /* vacía intencionalmente */
 }
 
-/* ============================================================
-   PIEZAS
-   ============================================================ */
+/* --- PIEZAS --- */
+ */
 .piece {
     width: 100%;
     height: 100%;
@@ -234,7 +252,8 @@ body {
 
     /* NUEVO: Aplicamos la escala basada en la variable de JavaScript */
     transform: scale(var(--piece-scale, 1));
-    transform-origin: bottom center; /* Asegura que crezcan hacia arriba y no se salgan de la casilla por debajo */
+    transform: scale(var(--piece-scale, 1));
+    transform-origin: var(--piece-origin, bottom center);
 }
 
 .piece:hover .piece-image {
@@ -252,9 +271,7 @@ body {
     z-index: 2;
 }
 
-/* ============================================================
-   MARCADORES DE MOVIMIENTO
-   ============================================================ */
+/* --- MARCADORES DE MOVIMIENTO --- */
 .valid-move-dot {
     width: 28%;
     height: 28%;
@@ -291,9 +308,7 @@ body {
     50%      { transform: scale(1.08); opacity: 0.9; }
 }
 
-/* ============================================================
-   COORDENADAS INTERNAS DE CASILLA
-   ============================================================ */
+/* --- COORDENADAS INTERNAS DE CASILLA --- */
 .square-coord {
     position: absolute;
     top: 2px;
@@ -310,9 +325,7 @@ body {
 .square.light .square-coord { color: var(--sq-dark); }
 .square.dark  .square-coord { color: var(--sq-light); }
 
-/* ============================================================
-   UTILIDADES
-   ============================================================ */
+/* --- UTILIDADES --- */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -328,9 +341,7 @@ body {
     padding: 0 10px;
 }
 
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
+/* --- RESPONSIVE --- */
 @media (max-width: 1024px) {
     .board-container {
         max-width: 500px;
