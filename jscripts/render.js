@@ -10,9 +10,8 @@ import {
     getSquareNotation
 } from './constants.js';
 
-// ============================================================
+
 // ESTADO INTERNO
-// ============================================================
 let currentColorTheme = 'classic';
 let currentPieceTheme = 'classic';
 let currentPerspective = '2d';
@@ -25,10 +24,8 @@ let whiteCapturesEl = null;
 let blackCapturesEl = null;
 let onSquareClick = null;
 
-// ============================================================
-// 1. INICIALIZACIÓN
-// ============================================================
 
+// 1. INICIALIZACIÓN
 export function initRender(handleSquareClick) {
     boardContainer = document.getElementById('board');
     turnTextEl = document.getElementById('turn-text');
@@ -47,10 +44,8 @@ export function initRender(handleSquareClick) {
     console.log('[render.js] Inicializado');
 }
 
-// ============================================================
-// 2. API PÚBLICA
-// ============================================================
 
+// 2. API PÚBLICA
 export function setColorTheme(name) {
     if (!COLOR_THEMES[name]) {
         console.warn(`[render.js] Tema de color "${name}" no existe`);
@@ -88,10 +83,8 @@ export function getShowCoords() {
     return showCoords;
 }
 
-// ============================================================
-// 3. RENDERIZADO PRINCIPAL (Grid 14x14)
-// ============================================================
 
+// 3. RENDERIZADO PRINCIPAL (Grid 14x14)
 export function renderBoard(gameState) {
     if (!boardContainer) {
         console.error('[render.js] boardContainer es null');
@@ -116,8 +109,14 @@ export function renderBoard(gameState) {
         return;
     }
 
-    const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.classic;
+    // Temas activos (obedecen los selectores de la UI)
     const pieceTheme = PIECE_THEMES[currentPieceTheme] || PIECE_THEMES.classic;
+    const colorTheme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.classic;
+
+    // Modo de tablero: textura o color sólido
+    const isTextureMode = pieceTheme.boardType === 'texture';
+    // Colores para highlights (si el tema de piezas los define, los usa; si no, fallback al colorTheme)
+    const highlightColors = pieceTheme.highlightColors || colorTheme;
 
     boardContainer.innerHTML = '';
 
@@ -133,9 +132,9 @@ export function renderBoard(gameState) {
                 square.style.gridRow = String(r + 1);
                 square.style.gridColumn = String(c + 1);
 
-                // ============================================================
+                
                 // FILA 0 — NORTE (span 10 cols) + esquinas
-                // ============================================================
+                
                 if (r === 0) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -149,9 +148,23 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
+                
+                // BORDES Y ETIQUETAS (filas 0,1,12,13 y cols 0,1,12,13)
+                // FILA 0 — NORTE (span 10 cols) + esquinas
+                if (r === 0) {
+                    if (c === 0 || c === 1 || c === 12 || c === 13) {
+                        square.className = 'square edge-cell corner-cell';
+                    } else if (c === 2) {
+                        square.className = 'square label-north';
+                        square.innerText = 'NORTE';
+                        square.style.gridColumn = '3 / span 10';
+                        for (let i = 3; i <= 11; i++) skipCells.add(`0,${i}`);
+                    }
+                    boardContainer.appendChild(square);
+                    continue;
+                }
+
                 // FILA 13 — SUR (span 10 cols) + esquinas
-                // ============================================================
                 if (r === 13) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -165,9 +178,7 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
                 // FILA 1 — borde vacío transparente + esquinas
-                // ============================================================
                 if (r === 1) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -178,9 +189,7 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
                 // FILA 12 — coordenadas X + esquinas
-                // ============================================================
                 if (r === 12) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -193,9 +202,7 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
                 // COLUMNA 0 — OESTE (span 10 rows) + esquinas
-                // ============================================================
                 if (c === 0) {
                     if (r === 2) {
                         square.className = 'square label-west';
@@ -210,9 +217,7 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
                 // COLUMNA 13 — ESTE (span 10 rows) + esquinas
-                // ============================================================
                 if (c === 13) {
                     if (r === 2) {
                         square.className = 'square label-east';
@@ -227,18 +232,14 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
                 // COLUMNA 1 — borde vacío transparente
-                // ============================================================
                 if (c === 1) {
                     square.className = 'square border-transparent';
                     boardContainer.appendChild(square);
                     continue;
                 }
 
-                // ============================================================
                 // COLUMNA 12 — coordenadas Y
-                // ============================================================
                 if (c === 12) {
                     square.className = 'square edge-cell';
                     const gameRow = r - 2;
@@ -247,41 +248,90 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // ============================================================
+                
                 // ÁREA DE JUEGO 10×10 (filas 2-11, cols 2-11)
-                // ============================================================
                 const gameRow = r - 2;
                 const gameCol = c - 2;
                 const isLight = (gameRow + gameCol) % 2 === 0;
                 square.className = `square ${isLight ? 'light' : 'dark'}`;
 
-                let bgColor = isLight ? theme.light : theme.dark;
+                // --- DETECTAR HIGHLIGHTS ---
+                let highlightType = null;
 
                 if (selectedPiece && selectedPiece.r === gameRow && selectedPiece.c === gameCol) {
-                    bgColor = isLight ? theme.lightHighlight : theme.darkHighlight;
+                    highlightType = 'selected';
                 }
 
                 if (lastMove) {
                     const isFrom = lastMove.from && lastMove.from.r === gameRow && lastMove.from.c === gameCol;
                     const isTo = lastMove.to && lastMove.to.r === gameRow && lastMove.to.c === gameCol;
                     if (isFrom || isTo) {
-                        bgColor = isLight ? theme.lastMoveLight : theme.lastMoveDark;
+                        highlightType = 'last-move';
                     }
                 }
 
                 if (gameState.isCheck && kingPositions[turn] && kingPositions[turn].r === gameRow && kingPositions[turn].c === gameCol) {
-                    bgColor = theme.check;
+                    highlightType = 'in-check';
                 }
 
-                square.style.backgroundColor = bgColor;
+                // --- FONDO BASE + HIGHLIGHTS ---
+                const useOverlay = isTextureMode && currentPerspective === '2.5d' && highlightType;
+
+                if (isTextureMode) {
+                    // Modo textura: div absoluto con img real, bleed de 3px para tapar gaps del grid
+                    const tileList = isLight ? pieceTheme.tiles.light : pieceTheme.tiles.dark;
+                    const variantIndex = (gameRow * 10 + gameCol) % tileList.length;
+
+                    const tileWrap = document.createElement('div');
+                    tileWrap.style.position = 'absolute';
+                    tileWrap.style.top = '-3px';
+                    tileWrap.style.left = '-3px';
+                    tileWrap.style.right = '-3px';
+                    tileWrap.style.bottom = '-3px';
+                    tileWrap.style.zIndex = '0';
+                    tileWrap.style.pointerEvents = 'none';
+
+                    const tileImg = document.createElement('img');
+                    tileImg.src = tileList[variantIndex];
+                    tileImg.style.width = '100%';
+                    tileImg.style.height = '100%';
+                    tileImg.style.objectFit = 'fill';
+                    tileImg.style.display = 'block';
+                    tileImg.draggable = false;
+                    tileImg.alt = '';
+
+                    tileWrap.appendChild(tileImg);
+                    square.appendChild(tileWrap);
+
+                    if (useOverlay) {
+                        square.classList.add(highlightType);
+                    }
+                } else {
+                    // Modo color plano (Clásico)
+                    square.style.backgroundImage = 'none';
+                    let bgColor = isLight ? colorTheme.light : colorTheme.dark;
+
+                    if (highlightType === 'selected') {
+                        bgColor = isLight ? highlightColors.lightHighlight : highlightColors.darkHighlight;
+                    } else if (highlightType === 'last-move') {
+                        bgColor = isLight ? highlightColors.lastMoveLight : highlightColors.lastMoveDark;
+                    } else if (highlightType === 'in-check') {
+                        bgColor = highlightColors.check;
+                    }
+
+                    square.style.backgroundColor = bgColor;
+                }
+
                 applySquarePerspective(square, isLight);
 
+               // --- PIEZA ---
                 const piece = board[gameRow] && board[gameRow][gameCol];
                 if (piece) {
                     const pieceEl = createPieceElement(piece, pieceTheme);
                     if (pieceEl) square.appendChild(pieceEl);
                 }
 
+                // --- MARCADORES DE MOVIMIENTO ---
                 const move = validMoves.find(m => m && m.r === gameRow && m.c === gameCol);
                 if (move) {
                     const marker = document.createElement('div');
@@ -289,6 +339,7 @@ export function renderBoard(gameState) {
                     square.appendChild(marker);
                 }
 
+                // --- COORDENADAS ---
                 // Coordenadas internas de casilla (siempre renderizadas, visibles vía CSS)
                 const coord = document.createElement('span');
                 coord.className = 'square-coord';
@@ -310,32 +361,27 @@ export function renderBoard(gameState) {
     }
 }
 
-// ============================================================
-// 4. ELEMENTOS
-// ============================================================
 
+// 4. ELEMENTOS
 function createPieceElement(piece, theme) {
     if (!piece || !piece.type || !piece.color) return null;
 
     const wrapper = document.createElement('div');
     wrapper.className = `piece ${piece.color}`;
 
-    // ============================================================
-    // ESCALA DINÁMICA CORREGIDA
-    // ============================================================
+    // Escala dinámica: busca por nombre de imagen, luego tipo interno, luego default
     const scales = theme.scales || {};
-    
-    // Obtenemos el nombre de archivo correspondiente (base o promocionado)
     const pieceInfo = PIECES[piece.type];
-    const scaleKey = pieceInfo 
-        ? (piece.promoted ? pieceInfo.promoted : pieceInfo.base) 
+    const scaleKey = pieceInfo
+        ? (piece.promoted ? pieceInfo.promoted : pieceInfo.base)
         : piece.type;
-    
-    // Buscamos: 1) por nombre de imagen, 2) por tipo interno, 3) default
     const pieceScale = scales[scaleKey] || scales[piece.type] || scales.default || 1;
-    
     wrapper.style.setProperty('--piece-scale', pieceScale);
-    // ============================================================
+
+
+      // Origen de transformación según el tema (center para clásico, bottom para chibi)
+    const transformOrigin = theme.transformOrigin || 'bottom center';
+    wrapper.style.setProperty('--piece-origin', transformOrigin);
 
     const img = document.createElement('img');
     const src = getPieceImagePath(piece, theme);
@@ -356,10 +402,8 @@ function createPieceElement(piece, theme) {
     return wrapper;
 }
 
-// ============================================================
-// 5. PERSPECTIVAS
-// ============================================================
 
+// 5. PERSPECTIVAS
 function applyPerspective(perspective) {
     if (!boardContainer) return;
     boardContainer.classList.remove('perspective-2d', 'perspective-2-5d', 'perspective-3d');
@@ -386,10 +430,8 @@ function applySquarePerspective(square, isLight) {
     }
 }
 
-// ============================================================
-// 6. TEMAS DE COLOR
-// ============================================================
 
+// 6. TEMAS DE COLOR
 function applyColorTheme(name) {
     const theme = COLOR_THEMES[name];
     if (!theme) return;
@@ -403,10 +445,8 @@ function applyColorTheme(name) {
     root.style.setProperty('--sq-check', theme.check);
 }
 
-// ============================================================
-// 7. UI
-// ============================================================
 
+// 7. UI
 export function updateUI(turn, capturedPawns) {
     if (turnTextEl) {
         turnTextEl.textContent = turn === 'none' ? 'Fin' : (turn === 'white' ? 'Blancas' : 'Negras');
@@ -443,4 +483,3 @@ export function showMessage(text, duration = 3000) {
     }
 }
 
-// ============================================================
