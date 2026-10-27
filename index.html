@@ -3,22 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ajedrez Imperial 10x10</title>
-
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-K5EXQV41H4"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-K5EXQV41H4');
-    </script>
+    <title>Ajedrez Imperial 10x10 — Demo Open Core</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles/styles.css" />
-    <base target="_blank">
-<base target="_blank">
+    <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body class="min-h-screen flex flex-col lg:flex-row items-center justify-center p-2 lg:p-8 gap-6 bg-[#1e1e1e]">
 
@@ -82,7 +71,7 @@
                 <label id="ui-piece-theme-label" class="text-xs uppercase text-gray-500 font-bold tracking-wider block mb-2">Estilo de Piezas</label>
                 <select id="piece-theme" class="w-full bg-[#302e2b] text-white p-2 rounded border border-gray-600 text-sm">
                     <option value="classic">Clásico</option>
-                  <option value="chibi">Chibi / FF</option>
+                    <option value="chibi">Chibi / FF</option>
                 </select>
             </div>
 
@@ -92,7 +81,6 @@
                 <select id="perspective" class="w-full bg-[#302e2b] text-white p-2 rounded border border-gray-600 text-sm">
                     <option value="2d">2D Plano</option>
                     <option value="2.5d">2.5D Isométrico</option>
-                   <!-- <option value="3d">3D Elevado</option>-->
                 </select>
             </div>
 
@@ -111,17 +99,11 @@
             <h3 id="ui-tools-label" class="text-sm uppercase text-gray-500 font-bold tracking-wider mb-3">Herramientas / Práctica</h3>
             <div class="flex gap-2 mb-3">
                 <button id="btn-undo" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">↩ Deshacer</button>
+                <button id="btn-coords" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">(x;y) Coordenadas</button>
                 <!--<button id="btn-edit-mode" class="flex-1 bg-[#4b4843] hover:bg-yellow-600 text-white py-2 rounded text-sm transition font-semibold">
                     <a href="editor/editor.html">✏️ Editor</a>
                 </button>-->
-                <button id="btn-coords" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">(x;y) Coordenadas</button>
             </div>
-        </div>
-
-        <!-- Historial -->
-        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
-            <h3 id="ui-history-label" class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-2">Historial Imperial</h3>
-            <div id="move-history-list" class="h-40 overflow-y-auto bg-[#302e2b] rounded p-2 text-sm text-gray-300 font-mono space-y-1"></div>
         </div>
     </aside>
 
@@ -228,6 +210,6 @@
     </aside>
 
     <!-- Scripts -->
-    <script type="module" src="jscripts/main.js"></script>
+    <script type="module" src="./js/ui/main.js"></script>
 </body>
 </html>

@@ -1,20 +1,27 @@
-// render.js — Motor de Renderizado Ajedrez Imperial 10x10
-// Grid 14x14. Perspectiva 2.5D fija: rotateX(15deg) rotateZ(60deg).
+// js/ui/render.js — Motor de Renderizado (Open Core GitHub)
+// Versión simplificada: Grid 14x14, 2 escenarios (city, volcano1), sin animaciones.
 
 import {
     BOARD_SIZE,
     COLOR_THEMES,
-    PIECE_THEMES,
     PIECES,
     getPieceImagePath,
     getSquareNotation
-} from './constants.js';
+} from '../core/constants.js';
 
+import {
+    PIECE_THEMES
+} from '../core/constants-scenes.js';
 
-// ESTADO INTERNO
+// Escenarios disponibles en la demo de GitHub (elegidos al azar).
+// El usuario NO los elige. volcano1 conserva el nombre de itch.io.
+const AVAILABLE_SCENARIOS = ['city', 'volcano1'];
+
+// ESTADO INTERNO (Variables de módulo)
 let currentColorTheme = 'classic';
 let currentPieceTheme = 'classic';
 let currentPerspective = '2d';
+let currentScenario = null; // Se asigna al sortear o al restaurar
 let showCoords = false;
 
 let boardContainer = null;
@@ -24,14 +31,11 @@ let whiteCapturesEl = null;
 let blackCapturesEl = null;
 let onSquareClick = null;
 
-
 // 1. INICIALIZACIÓN
 export function initRender(handleSquareClick) {
     boardContainer = document.getElementById('board');
     turnTextEl = document.getElementById('turn-text');
     turnIndicatorEl = document.getElementById('turn-indicator-color');
-    whiteCapturesEl = document.getElementById('white-captures');
-    blackCapturesEl = document.getElementById('black-captures');
     onSquareClick = handleSquareClick;
 
     if (!boardContainer) {
@@ -41,61 +45,85 @@ export function initRender(handleSquareClick) {
 
     applyColorTheme(currentColorTheme);
     applyPerspective(currentPerspective);
-    console.log('[render.js] Inicializado');
+    applyScenarioBackground();
+    console.log('[render.js] Inicializado (Open Core)');
 }
 
-
-// 2. API PÚBLICA
+// 2. API PÚBLICA — TEMAS
 export function setColorTheme(name) {
-    if (!COLOR_THEMES[name]) {
-        console.warn(`[render.js] Tema de color "${name}" no existe`);
-        return;
-    }
+    if (!COLOR_THEMES[name]) return;
     currentColorTheme = name;
     applyColorTheme(name);
-    console.log(`[render.js] Tema de color: ${name}`);
 }
 
 export function setPieceTheme(name) {
-    if (!PIECE_THEMES[name]) {
-        console.warn(`[render.js] Tema de piezas "${name}" no existe`);
-        return;
-    }
+    if (!PIECE_THEMES[name]) return;
     currentPieceTheme = name;
-    console.log(`[render.js] Tema de piezas: ${name}`);
 }
 
 export function setPerspective(p) {
-    if (!['2d', '2.5d', '3d'].includes(p)) {
-        console.warn(`[render.js] Perspectiva "${p}" inválida`);
-        return;
-    }
+    if (!['2d', '2.5d', '3d'].includes(p)) return;
     currentPerspective = p;
     applyPerspective(p);
-    console.log(`[render.js] Perspectiva: ${p}`);
 }
 
 export function toggleCoords() {
     showCoords = !showCoords;
 }
 
-export function getShowCoords() {
-    return showCoords;
+// 2b. GETTERS (para snapshot de sesión en main.js)
+export function getColorTheme()  { return currentColorTheme; }
+export function getPieceTheme()  { return currentPieceTheme; }
+export function getPerspective() { return currentPerspective; }
+export function getShowCoords()  { return showCoords; }
+export function getCurrentScenario() { return currentScenario; }
+
+// 2c. ESCENARIOS (aleatorios en GitHub)
+/**
+ * Sortea un escenario al iniciar sesión NUEVA.
+ * El usuario no lo elige.
+ */
+export function pickRandomScenario() {
+    const idx = Math.floor(Math.random() * AVAILABLE_SCENARIOS.length);
+    currentScenario = AVAILABLE_SCENARIOS[idx];
+    applyScenarioBackground();
+    console.log(`[render.js] Escenario aleatorio: ${currentScenario}`);
+    return currentScenario;
 }
 
+/**
+ * Restaura un escenario guardado (al recargar el navegador).
+ * No sortea: respeta la sesión previa. Si el valor es inválido, sortea.
+ */
+export function restoreScenario(name) {
+    if (AVAILABLE_SCENARIOS.includes(name)) {
+        currentScenario = name;
+        applyScenarioBackground();
+        console.log(`[render.js] Escenario restaurado: ${name}`);
+        return currentScenario;
+    }
+    return pickRandomScenario();
+}
 
-// 3. RENDERIZADO PRINCIPAL (Grid 14x14)
+function applyScenarioBackground() {
+    if (!boardContainer) return;
+    const theme = PIECE_THEMES[currentPieceTheme];
+    const bg = currentScenario && theme?.backgroundImage
+        ? theme.backgroundImage[currentScenario]
+        : null;
+    if (bg) {
+        boardContainer.style.backgroundImage = `url("${bg}")`;
+        boardContainer.style.backgroundSize = 'cover';
+        boardContainer.style.backgroundPosition = 'center';
+    } else {
+        boardContainer.style.backgroundImage = '';
+    }
+}
+
+// 3. RENDERIZADO PRINCIPAL
 export function renderBoard(gameState) {
-    if (!boardContainer) {
-        console.error('[render.js] boardContainer es null');
-        return;
-    }
-
-    // Validación suave: si no hay gameState, no crashear
-    if (!gameState || typeof gameState !== 'object') {
-        console.warn('[render.js] gameState no disponible, omitiendo render');
-        return;
-    }
+    if (!boardContainer) return;
+    if (!gameState || typeof gameState !== 'object') return;
 
     const board = gameState.board;
     const selectedPiece = gameState.selectedPiece;
@@ -104,24 +132,21 @@ export function renderBoard(gameState) {
     const turn = gameState.turn;
     const kingPositions = gameState.kingPositions || { white: null, black: null };
 
-    if (!Array.isArray(board) || board.length !== BOARD_SIZE) {
-        console.error('[render.js] Tablero inválido:', board);
-        return;
-    }
+    if (!Array.isArray(board) || board.length !== BOARD_SIZE) return;
 
-    // Temas activos (obedecen los selectores de la UI)
     const pieceTheme = PIECE_THEMES[currentPieceTheme] || PIECE_THEMES.classic;
     const colorTheme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.classic;
 
-    // Modo de tablero: textura o color sólido
     const isTextureMode = pieceTheme.boardType === 'texture';
-    // Colores para highlights (si el tema de piezas los define, los usa; si no, fallback al colorTheme)
     const highlightColors = pieceTheme.highlightColors || colorTheme;
+
+    // Sincroniza el fondo con el escenario actual (por si cambió el tema).
+    applyScenarioBackground();
 
     boardContainer.innerHTML = '';
 
     try {
-        const GRID_SIZE = BOARD_SIZE + 4; // 14
+        const GRID_SIZE = BOARD_SIZE + 4;
         const skipCells = new Set();
 
         for (let r = 0; r < GRID_SIZE; r++) {
@@ -132,9 +157,7 @@ export function renderBoard(gameState) {
                 square.style.gridRow = String(r + 1);
                 square.style.gridColumn = String(c + 1);
 
-                
-                // FILA 0 — NORTE (span 10 cols) + esquinas
-                
+                // --- BORDES Y ETIQUETAS (NORTE, SUR, OESTE, ESTE) ---
                 if (r === 0) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -148,23 +171,6 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                
-                // BORDES Y ETIQUETAS (filas 0,1,12,13 y cols 0,1,12,13)
-                // FILA 0 — NORTE (span 10 cols) + esquinas
-                if (r === 0) {
-                    if (c === 0 || c === 1 || c === 12 || c === 13) {
-                        square.className = 'square edge-cell corner-cell';
-                    } else if (c === 2) {
-                        square.className = 'square label-north';
-                        square.innerText = 'NORTE';
-                        square.style.gridColumn = '3 / span 10';
-                        for (let i = 3; i <= 11; i++) skipCells.add(`0,${i}`);
-                    }
-                    boardContainer.appendChild(square);
-                    continue;
-                }
-
-                // FILA 13 — SUR (span 10 cols) + esquinas
                 if (r === 13) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -178,22 +184,16 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // FILA 1 — borde vacío transparente + esquinas
                 if (r === 1) {
-                    if (c === 0 || c === 1 || c === 12 || c === 13) {
-                        square.className = 'square edge-cell corner-cell';
-                    } else {
-                        square.className = 'square border-transparent';
-                    }
+                    if (c === 0 || c === 1 || c === 12 || c === 13) square.className = 'square edge-cell corner-cell';
+                    else square.className = 'square border-transparent';
                     boardContainer.appendChild(square);
                     continue;
                 }
 
-                // FILA 12 — coordenadas X + esquinas
                 if (r === 12) {
-                    if (c === 0 || c === 1 || c === 12 || c === 13) {
-                        square.className = 'square edge-cell corner-cell';
-                    } else {
+                    if (c === 0 || c === 1 || c === 12 || c === 13) square.className = 'square edge-cell corner-cell';
+                    else {
                         square.className = 'square edge-cell';
                         const gameCol = c - 2;
                         square.innerText = (gameCol < 5) ? `${5 - gameCol}O` : `${gameCol - 4}E`;
@@ -202,7 +202,6 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // COLUMNA 0 — OESTE (span 10 rows) + esquinas
                 if (c === 0) {
                     if (r === 2) {
                         square.className = 'square label-west';
@@ -217,7 +216,6 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // COLUMNA 13 — ESTE (span 10 rows) + esquinas
                 if (c === 13) {
                     if (r === 2) {
                         square.className = 'square label-east';
@@ -232,14 +230,12 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // COLUMNA 1 — borde vacío transparente
                 if (c === 1) {
                     square.className = 'square border-transparent';
                     boardContainer.appendChild(square);
                     continue;
                 }
 
-                // COLUMNA 12 — coordenadas Y
                 if (c === 12) {
                     square.className = 'square edge-cell';
                     const gameRow = r - 2;
@@ -248,37 +244,25 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                
-                // ÁREA DE JUEGO 10×10 (filas 2-11, cols 2-11)
+                // --- ÁREA DE JUEGO (10x10) ---
                 const gameRow = r - 2;
                 const gameCol = c - 2;
                 const isLight = (gameRow + gameCol) % 2 === 0;
                 square.className = `square ${isLight ? 'light' : 'dark'}`;
 
-                // --- DETECTAR HIGHLIGHTS ---
+                // Highlights
                 let highlightType = null;
-
-                if (selectedPiece && selectedPiece.r === gameRow && selectedPiece.c === gameCol) {
-                    highlightType = 'selected';
-                }
-
+                if (selectedPiece && selectedPiece.r === gameRow && selectedPiece.c === gameCol) highlightType = 'selected';
                 if (lastMove) {
                     const isFrom = lastMove.from && lastMove.from.r === gameRow && lastMove.from.c === gameCol;
                     const isTo = lastMove.to && lastMove.to.r === gameRow && lastMove.to.c === gameCol;
-                    if (isFrom || isTo) {
-                        highlightType = 'last-move';
-                    }
+                    if (isFrom || isTo) highlightType = 'last-move';
                 }
+                if (gameState.isCheck && kingPositions[turn] && kingPositions[turn].r === gameRow && kingPositions[turn].c === gameCol) highlightType = 'in-check';
 
-                if (gameState.isCheck && kingPositions[turn] && kingPositions[turn].r === gameRow && kingPositions[turn].c === gameCol) {
-                    highlightType = 'in-check';
-                }
-
-                // --- FONDO BASE + HIGHLIGHTS ---
                 const useOverlay = isTextureMode && currentPerspective === '2.5d' && highlightType;
 
                 if (isTextureMode) {
-                    // Modo textura: div absoluto con img real, bleed de 3px para tapar gaps del grid
                     const tileList = isLight ? pieceTheme.tiles.light : pieceTheme.tiles.dark;
                     const variantIndex = (gameRow * 10 + gameCol) % tileList.length;
 
@@ -303,35 +287,25 @@ export function renderBoard(gameState) {
                     tileWrap.appendChild(tileImg);
                     square.appendChild(tileWrap);
 
-                    if (useOverlay) {
-                        square.classList.add(highlightType);
-                    }
+                    if (useOverlay) square.classList.add(highlightType);
                 } else {
-                    // Modo color plano (Clásico)
-                    square.style.backgroundImage = 'none';
                     let bgColor = isLight ? colorTheme.light : colorTheme.dark;
-
-                    if (highlightType === 'selected') {
-                        bgColor = isLight ? highlightColors.lightHighlight : highlightColors.darkHighlight;
-                    } else if (highlightType === 'last-move') {
-                        bgColor = isLight ? highlightColors.lastMoveLight : highlightColors.lastMoveDark;
-                    } else if (highlightType === 'in-check') {
-                        bgColor = highlightColors.check;
-                    }
-
+                    if (highlightType === 'selected') bgColor = isLight ? highlightColors.lightHighlight : highlightColors.darkHighlight;
+                    else if (highlightType === 'last-move') bgColor = isLight ? highlightColors.lastMoveLight : highlightColors.lastMoveDark;
+                    else if (highlightType === 'in-check') bgColor = highlightColors.check;
                     square.style.backgroundColor = bgColor;
                 }
 
                 applySquarePerspective(square, isLight);
 
-               // --- PIEZA ---
+                // Pieza
                 const piece = board[gameRow] && board[gameRow][gameCol];
                 if (piece) {
                     const pieceEl = createPieceElement(piece, pieceTheme);
                     if (pieceEl) square.appendChild(pieceEl);
                 }
 
-                // --- MARCADORES DE MOVIMIENTO ---
+                // Marcadores de movimiento
                 const move = validMoves.find(m => m && m.r === gameRow && m.c === gameCol);
                 if (move) {
                     const marker = document.createElement('div');
@@ -339,15 +313,12 @@ export function renderBoard(gameState) {
                     square.appendChild(marker);
                 }
 
-                // --- COORDENADAS ---
-                // Coordenadas internas de casilla (siempre renderizadas, visibles vía CSS)
+                // Coordenadas
                 const coord = document.createElement('span');
                 coord.className = 'square-coord';
                 coord.innerText = getSquareNotation(gameRow, gameCol);
                 square.appendChild(coord);
-                if (showCoords) {
-                    square.classList.add('show-coords');
-                }
+                if (showCoords) square.classList.add('show-coords');
 
                 square.addEventListener('click', () => {
                     if (onSquareClick) onSquareClick(gameRow, gameCol);
@@ -361,7 +332,6 @@ export function renderBoard(gameState) {
     }
 }
 
-
 // 4. ELEMENTOS
 function createPieceElement(piece, theme) {
     if (!piece || !piece.type || !piece.color) return null;
@@ -369,17 +339,12 @@ function createPieceElement(piece, theme) {
     const wrapper = document.createElement('div');
     wrapper.className = `piece ${piece.color}`;
 
-    // Escala dinámica: busca por nombre de imagen, luego tipo interno, luego default
     const scales = theme.scales || {};
     const pieceInfo = PIECES[piece.type];
-    const scaleKey = pieceInfo
-        ? (piece.promoted ? pieceInfo.promoted : pieceInfo.base)
-        : piece.type;
+    const scaleKey = pieceInfo ? (piece.promoted ? pieceInfo.promoted : pieceInfo.base) : piece.type;
     const pieceScale = scales[scaleKey] || scales[piece.type] || scales.default || 1;
     wrapper.style.setProperty('--piece-scale', pieceScale);
 
-
-      // Origen de transformación según el tema (center para clásico, bottom para chibi)
     const transformOrigin = theme.transformOrigin || 'bottom center';
     wrapper.style.setProperty('--piece-origin', transformOrigin);
 
@@ -402,14 +367,11 @@ function createPieceElement(piece, theme) {
     return wrapper;
 }
 
-
 // 5. PERSPECTIVAS
 function applyPerspective(perspective) {
     if (!boardContainer) return;
     boardContainer.classList.remove('perspective-2d', 'perspective-2-5d', 'perspective-3d');
     boardContainer.classList.add(`perspective-${perspective.replace('.', '-')}`);
-    boardContainer.style.transform = '';
-    boardContainer.style.transformStyle = '';
 }
 
 function applySquarePerspective(square, isLight) {
@@ -430,7 +392,6 @@ function applySquarePerspective(square, isLight) {
     }
 }
 
-
 // 6. TEMAS DE COLOR
 function applyColorTheme(name) {
     const theme = COLOR_THEMES[name];
@@ -445,41 +406,27 @@ function applyColorTheme(name) {
     root.style.setProperty('--sq-check', theme.check);
 }
 
-
-// 7. UI
+// 7. UI (Turno y capturas)
 export function updateUI(turn, capturedPawns) {
     if (turnTextEl) {
         turnTextEl.textContent = turn === 'none' ? 'Fin' : (turn === 'white' ? 'Blancas' : 'Negras');
     }
     if (turnIndicatorEl) {
         turnIndicatorEl.className = `w-4 h-4 rounded-full border border-gray-400 ${
-            turn === 'white' ? 'bg-white' :
-            turn === 'black' ? 'bg-[#111]' :
-            'bg-red-500'
+            turn === 'white' ? 'bg-white' : turn === 'black' ? 'bg-[#111]' : 'bg-red-500'
         }`;
-    }
-    if (whiteCapturesEl) {
-        whiteCapturesEl.textContent = capturedPawns?.white ?? 0;
-    }
-    if (blackCapturesEl) {
-        blackCapturesEl.textContent = capturedPawns?.black ?? 0;
     }
 }
 
 export function showMessage(text, duration = 3000) {
     const msgEl = document.getElementById('game-message');
     if (!msgEl) return;
-
     msgEl.textContent = text;
     msgEl.style.opacity = '0';
-    requestAnimationFrame(() => {
-        msgEl.style.opacity = '1';
-    });
-
+    requestAnimationFrame(() => { msgEl.style.opacity = '1'; });
     if (duration > 0 && !text.includes('Ganan') && !text.includes('iniciada')) {
         setTimeout(() => {
             if (msgEl.textContent === text) msgEl.textContent = '';
         }, duration);
     }
 }
-
