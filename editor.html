@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Imperial - Ajedrez 10x10</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row items-start justify-center p-2 lg:p-6 gap-4 bg-[#1e1e1e]">
+
+    <!-- PANEL IZQUIERDO: Controles del Editor -->
+    <aside class="w-full lg:w-80 flex flex-col gap-3 shrink-0">
+
+        <!-- Header -->
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-white">Editor Imperial</h1>
+                <p class="text-xs text-gray-400">Arma y prueba posiciones</p>
+            </div>
+            <a href="./index.html" class="bg-[#4b4843] hover:bg-[#5c5852] text-white text-xs px-3 py-1.5 rounded transition">Volver al Juego</a>
+        </div>
+
+        <!-- Estado y Modos -->
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl">
+            <div class="flex items-center justify-between bg-[#302e2b] p-2.5 rounded mb-3">
+                <span class="text-gray-300 font-semibold text-sm">Turno:</span>
+                <div class="flex items-center gap-2">
+                    <div id="turn-indicator-color" class="w-3.5 h-3.5 rounded-full bg-white border border-gray-400"></div>
+                    <span id="turn-text" class="text-white font-bold">Blancas</span>
+                </div>
+            </div>
+
+            <!-- Botones de Juego -->
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="btn-play" class="bg-[#81b64c] hover:bg-[#8bc253] text-white font-bold py-2.5 px-3 rounded shadow transition text-sm flex items-center justify-center gap-1.5">
+                    <span>▶</span> Jugar
+                </button>
+                <button id="btn-stop" class="bg-red-800/60 hover:bg-red-700/60 text-white font-bold py-2.5 px-3 rounded shadow transition text-sm hidden flex items-center justify-center gap-1.5">
+                    <span>■</span> Detener
+                </button>
+            </div>
+
+            <div id="game-message" class="text-xs text-center text-yellow-400 font-semibold min-h-[28px] flex items-center justify-center px-2">
+                Modo Edición activo. Coloca piezas.
+            </div>
+        </div>
+
+        <!-- HERRAMIENTAS DE EDICIÓN (Visible en modo Edit) -->
+        <div id="editor-controls" class="bg-[#262421] p-4 rounded-lg shadow-xl flex flex-col gap-3">
+            
+            <!-- Selector de color -->
+            <div class="flex items-center justify-between">
+                <span class="text-xs uppercase text-gray-500 font-bold">Color de pieza</span>
+                <div class="flex bg-[#302e2b] rounded p-0.5">
+                    <button id="color-white" class="px-3 py-1 rounded text-xs font-bold bg-white text-[#262421] transition">Blancas</button>
+                    <button id="color-black" class="px-3 py-1 rounded text-xs font-bold text-gray-400 hover:text-white transition">Negras</button>
+                </div>
+            </div>
+
+            <!-- Paleta -->
+            <div>
+                <span class="text-xs uppercase text-gray-500 font-bold block mb-1">Paleta de piezas</span>
+                <div id="editor-palette" class="grid grid-cols-5 gap-1.5 bg-[#302e2b] p-2 rounded">
+                    <!-- Se llena por JS -->
+                </div>
+            </div>
+
+            <!-- Herramientas -->
+            <div class="border-t border-gray-700 pt-3 mt-1">
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="tool-eraser" class="bg-[#302e2b] hover:bg-[#3e3c39] text-gray-300 py-2 rounded text-xs font-semibold border border-transparent transition flex items-center justify-center gap-1.5">
+                        🧹 Borrador
+                    </button>
+                    <button id="btn-clear" class="bg-red-900/40 hover:bg-red-800/50 text-red-200 py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        🗑️ Vaciar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Posiciones -->
+            <div class="border-t border-gray-700 pt-3 mt-1">
+                <button id="btn-load-initial" class="w-full bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                    ♟️ Cargar Posición Inicial
+                </button>
+            </div>
+        </div>
+
+        <!-- HISTORIAL (Visible en modo Play) -->
+        <div id="play-controls" class="bg-[#262421] p-4 rounded-lg shadow-xl hidden flex-col gap-3">
+            <div class="flex justify-between items-center">
+                <span class="text-xs uppercase text-gray-500 font-bold">Historial</span>
+                <button id="btn-undo" class="text-xs text-[#81b64c] hover:text-white transition">↩ Deshacer</button>
+            </div>
+            <div id="move-history-list" class="h-40 overflow-y-auto bg-[#302e2b] rounded p-2 text-sm text-gray-300 font-mono space-y-1">
+                <div class="text-gray-500 text-xs italic text-center py-4">Sin movimientos</div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- TABLERO CENTRAL -->
+    <main class="flex-1 w-full flex justify-center items-center p-4 sm:p-8">
+        <!-- Wrappers necesarios para el renderizado de fondo 2.5D -->
+            <div id="board" class="board-container shadow-2xl"></div>
+    </main>
+
+    <!-- PANEL DERECHO: Leyenda de Piezas -->
+    <aside class="w-full lg:w-80 flex flex-col gap-3 shrink-0">
+        <div class="bg-[#262421] p-4 rounded-lg shadow-xl text-sm">
+            <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-3">Leyenda de Piezas</h3>
+            <div class="grid grid-cols-2 gap-2 text-gray-300">
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="assets/icons/b-peon-b.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="assets/icons/b-sargento.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Peón / Sargento</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="assets/icons/b-vigia.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="assets/icons/b-torre.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Vigía / Torre</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="assets/icons/b-caballo.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="assets/icons/b-caballero.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Caballo / C. Imperial</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="assets/icons/b-paladin.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="assets/icons/b-general-real.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Paladín / G. Imperial</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="assets/icons/b-escudero.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="assets/icons/b-alfil.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Escudero / Alfil</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5"><img src="assets/icons/b-reina.png" class="w-5 h-5"><span class="text-white text-xs">→</span><img src="assets/icons/b-emperatriz.png" class="w-5 h-5"></div>
+                    <span class="text-[10px] text-gray-500">Reina / Emperatriz</span>
+                </div>
+                <div class="bg-[#302e2b] p-2 rounded col-span-2 flex items-center justify-center gap-2">
+                    <img src="assets/icons/b-emperador.png" class="w-5 h-5"><span class="text-white text-xs font-semibold">Emperador</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Scripts -->
+    <script type="module" src="./js/ui/editor.js"></script>
+
+</body>
+</html>

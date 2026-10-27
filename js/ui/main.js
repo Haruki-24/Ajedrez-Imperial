@@ -21,7 +21,7 @@ import {
 } from '../core/game.js';
 
 import { createCPU } from '../core/cpu.js';
-import { switchLanguage, updateTurnText } from './translate.js';
+import { switchLanguage, updateTurnText } from '../core/translate.js';
 import { BOARD_SIZE } from '../core/constants.js';
 import { PIECE_THEMES } from '../core/constants-scenes.js';
 

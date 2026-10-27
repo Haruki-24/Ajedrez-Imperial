@@ -1,5 +1,5 @@
 // js/ui/render.js — Motor de Renderizado (Open Core GitHub)
-// Versión simplificada: Grid 14x14, 2 escenarios (city, volcano1), sin animaciones.
+// Basado en itch.io v4, sin UI premium (material counter, bottom moves, aside toggle).
 
 import {
     BOARD_SIZE,
@@ -13,22 +13,19 @@ import {
     PIECE_THEMES
 } from '../core/constants-scenes.js';
 
-// Escenarios disponibles en la demo de GitHub (elegidos al azar).
-// El usuario NO los elige. volcano1 conserva el nombre de itch.io.
+// Escenarios disponibles en GitHub (aleatorios, el usuario NO los elige)
 const AVAILABLE_SCENARIOS = ['city', 'volcano1'];
 
-// ESTADO INTERNO (Variables de módulo)
+// ESTADO INTERNO
 let currentColorTheme = 'classic';
 let currentPieceTheme = 'classic';
 let currentPerspective = '2d';
-let currentScenario = null; // Se asigna al sortear o al restaurar
+let currentScenario = null;
 let showCoords = false;
 
 let boardContainer = null;
 let turnTextEl = null;
 let turnIndicatorEl = null;
-let whiteCapturesEl = null;
-let blackCapturesEl = null;
 let onSquareClick = null;
 
 // 1. INICIALIZACIÓN
@@ -45,11 +42,11 @@ export function initRender(handleSquareClick) {
 
     applyColorTheme(currentColorTheme);
     applyPerspective(currentPerspective);
-    applyScenarioBackground();
+    updateBackgroundVisibility();
     console.log('[render.js] Inicializado (Open Core)');
 }
 
-// 2. API PÚBLICA — TEMAS
+// 2. API PÚBLICA
 export function setColorTheme(name) {
     if (!COLOR_THEMES[name]) return;
     currentColorTheme = name;
@@ -59,19 +56,21 @@ export function setColorTheme(name) {
 export function setPieceTheme(name) {
     if (!PIECE_THEMES[name]) return;
     currentPieceTheme = name;
+    updateBackgroundVisibility();
 }
 
 export function setPerspective(p) {
     if (!['2d', '2.5d', '3d'].includes(p)) return;
     currentPerspective = p;
     applyPerspective(p);
+    updateBackgroundVisibility();
 }
 
 export function toggleCoords() {
     showCoords = !showCoords;
 }
 
-// 2b. GETTERS (para snapshot de sesión en main.js)
+// 2b. GETTERS (para snapshot de sesión)
 export function getColorTheme()  { return currentColorTheme; }
 export function getPieceTheme()  { return currentPieceTheme; }
 export function getPerspective() { return currentPerspective; }
@@ -79,51 +78,27 @@ export function getShowCoords()  { return showCoords; }
 export function getCurrentScenario() { return currentScenario; }
 
 // 2c. ESCENARIOS (aleatorios en GitHub)
-/**
- * Sortea un escenario al iniciar sesión NUEVA.
- * El usuario no lo elige.
- */
 export function pickRandomScenario() {
     const idx = Math.floor(Math.random() * AVAILABLE_SCENARIOS.length);
     currentScenario = AVAILABLE_SCENARIOS[idx];
-    applyScenarioBackground();
+    updateBackgroundVisibility();
     console.log(`[render.js] Escenario aleatorio: ${currentScenario}`);
     return currentScenario;
 }
 
-/**
- * Restaura un escenario guardado (al recargar el navegador).
- * No sortea: respeta la sesión previa. Si el valor es inválido, sortea.
- */
 export function restoreScenario(name) {
     if (AVAILABLE_SCENARIOS.includes(name)) {
         currentScenario = name;
-        applyScenarioBackground();
+        updateBackgroundVisibility();
         console.log(`[render.js] Escenario restaurado: ${name}`);
         return currentScenario;
     }
     return pickRandomScenario();
 }
 
-function applyScenarioBackground() {
-    if (!boardContainer) return;
-    const theme = PIECE_THEMES[currentPieceTheme];
-    const bg = currentScenario && theme?.backgroundImage
-        ? theme.backgroundImage[currentScenario]
-        : null;
-    if (bg) {
-        boardContainer.style.backgroundImage = `url("${bg}")`;
-        boardContainer.style.backgroundSize = 'cover';
-        boardContainer.style.backgroundPosition = 'center';
-    } else {
-        boardContainer.style.backgroundImage = '';
-    }
-}
-
-// 3. RENDERIZADO PRINCIPAL
+// 3. RENDERIZADO PRINCIPAL (Grid 14x14)
 export function renderBoard(gameState) {
-    if (!boardContainer) return;
-    if (!gameState || typeof gameState !== 'object') return;
+    if (!boardContainer || !gameState || typeof gameState !== 'object') return;
 
     const board = gameState.board;
     const selectedPiece = gameState.selectedPiece;
@@ -136,12 +111,8 @@ export function renderBoard(gameState) {
 
     const pieceTheme = PIECE_THEMES[currentPieceTheme] || PIECE_THEMES.classic;
     const colorTheme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.classic;
-
     const isTextureMode = pieceTheme.boardType === 'texture';
     const highlightColors = pieceTheme.highlightColors || colorTheme;
-
-    // Sincroniza el fondo con el escenario actual (por si cambió el tema).
-    applyScenarioBackground();
 
     boardContainer.innerHTML = '';
 
@@ -157,7 +128,7 @@ export function renderBoard(gameState) {
                 square.style.gridRow = String(r + 1);
                 square.style.gridColumn = String(c + 1);
 
-                // --- BORDES Y ETIQUETAS (NORTE, SUR, OESTE, ESTE) ---
+                // BORDES Y ETIQUETAS
                 if (r === 0) {
                     if (c === 0 || c === 1 || c === 12 || c === 13) {
                         square.className = 'square edge-cell corner-cell';
@@ -244,13 +215,12 @@ export function renderBoard(gameState) {
                     continue;
                 }
 
-                // --- ÁREA DE JUEGO (10x10) ---
+                // ÁREA DE JUEGO
                 const gameRow = r - 2;
                 const gameCol = c - 2;
                 const isLight = (gameRow + gameCol) % 2 === 0;
                 square.className = `square ${isLight ? 'light' : 'dark'}`;
 
-                // Highlights
                 let highlightType = null;
                 if (selectedPiece && selectedPiece.r === gameRow && selectedPiece.c === gameCol) highlightType = 'selected';
                 if (lastMove) {
@@ -258,7 +228,9 @@ export function renderBoard(gameState) {
                     const isTo = lastMove.to && lastMove.to.r === gameRow && lastMove.to.c === gameCol;
                     if (isFrom || isTo) highlightType = 'last-move';
                 }
-                if (gameState.isCheck && kingPositions[turn] && kingPositions[turn].r === gameRow && kingPositions[turn].c === gameCol) highlightType = 'in-check';
+                if (gameState.isCheck && kingPositions[turn] && kingPositions[turn].r === gameRow && kingPositions[turn].c === gameCol) {
+                    highlightType = 'in-check';
+                }
 
                 const useOverlay = isTextureMode && currentPerspective === '2.5d' && highlightType;
 
@@ -298,14 +270,12 @@ export function renderBoard(gameState) {
 
                 applySquarePerspective(square, isLight);
 
-                // Pieza
                 const piece = board[gameRow] && board[gameRow][gameCol];
                 if (piece) {
                     const pieceEl = createPieceElement(piece, pieceTheme);
                     if (pieceEl) square.appendChild(pieceEl);
                 }
 
-                // Marcadores de movimiento
                 const move = validMoves.find(m => m && m.r === gameRow && m.c === gameCol);
                 if (move) {
                     const marker = document.createElement('div');
@@ -313,7 +283,6 @@ export function renderBoard(gameState) {
                     square.appendChild(marker);
                 }
 
-                // Coordenadas
                 const coord = document.createElement('span');
                 coord.className = 'square-coord';
                 coord.innerText = getSquareNotation(gameRow, gameCol);
@@ -372,6 +341,8 @@ function applyPerspective(perspective) {
     if (!boardContainer) return;
     boardContainer.classList.remove('perspective-2d', 'perspective-2-5d', 'perspective-3d');
     boardContainer.classList.add(`perspective-${perspective.replace('.', '-')}`);
+    boardContainer.style.transform = '';
+    boardContainer.style.transformStyle = '';
 }
 
 function applySquarePerspective(square, isLight) {
@@ -392,7 +363,33 @@ function applySquarePerspective(square, isLight) {
     }
 }
 
-// 6. TEMAS DE COLOR
+// 6. FONDO DE ESCENARIO (idéntico a itch)
+function updateBackgroundVisibility() {
+    const main = document.querySelector('main');
+    const bgEl = document.querySelector('.board-bg');
+    if (!main) return;
+
+    const theme = PIECE_THEMES[currentPieceTheme];
+    const isChibi25D = currentPerspective === '2.5d' && currentPieceTheme === 'chibi';
+
+    let bgImage = null;
+    if (isChibi25D && theme?.backgroundImage) {
+        if (typeof theme.backgroundImage === 'string') {
+            bgImage = theme.backgroundImage;
+        } else if (typeof theme.backgroundImage === 'object') {
+            bgImage = theme.backgroundImage[currentScenario] || theme.backgroundImage[Object.keys(theme.backgroundImage)[0]];
+        }
+    }
+
+    if (bgEl) {
+        bgEl.style.backgroundImage = bgImage ? `url('${bgImage}')` : 'none';
+    }
+
+    if (isChibi25D) main.classList.add('show-board-bg');
+    else main.classList.remove('show-board-bg');
+}
+
+// 7. TEMAS DE COLOR
 function applyColorTheme(name) {
     const theme = COLOR_THEMES[name];
     if (!theme) return;
@@ -406,14 +403,16 @@ function applyColorTheme(name) {
     root.style.setProperty('--sq-check', theme.check);
 }
 
-// 7. UI (Turno y capturas)
+// 8. UI
 export function updateUI(turn, capturedPawns) {
     if (turnTextEl) {
         turnTextEl.textContent = turn === 'none' ? 'Fin' : (turn === 'white' ? 'Blancas' : 'Negras');
     }
     if (turnIndicatorEl) {
         turnIndicatorEl.className = `w-4 h-4 rounded-full border border-gray-400 ${
-            turn === 'white' ? 'bg-white' : turn === 'black' ? 'bg-[#111]' : 'bg-red-500'
+            turn === 'white' ? 'bg-white' :
+            turn === 'black' ? 'bg-[#111]' :
+            'bg-red-500'
         }`;
     }
 }

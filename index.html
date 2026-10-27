@@ -100,16 +100,19 @@
             <div class="flex gap-2 mb-3">
                 <button id="btn-undo" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">↩ Deshacer</button>
                 <button id="btn-coords" class="flex-1 bg-[#4b4843] hover:bg-[#5c5852] text-white py-2 rounded text-sm transition font-semibold">(x;y) Coordenadas</button>
-                <!--<button id="btn-edit-mode" class="flex-1 bg-[#4b4843] hover:bg-yellow-600 text-white py-2 rounded text-sm transition font-semibold">
-                    <a href="editor/editor.html">✏️ Editor</a>
-                </button>-->
+                <button id="btn-edit-mode" class="flex-1 bg-[#4b4843] hover:bg-yellow-600 text-white py-2 rounded text-sm transition font-semibold">
+                    <a href="./editor.html">✏️ Editor</a>
+                </button>
             </div>
         </div>
     </aside>
 
     <!-- TABLERO CENTRAL (Grid 14x14 integrado) -->
     <main class="flex-1 w-full flex justify-center items-center p-4 sm:p-8">
-        <div id="board" class="board-container shadow-2xl"></div>
+        <div class="board-bg"></div>
+        <div class="board-frame">
+            <div id="board" class="board-container shadow-2xl"></div>
+        </div>
     </main>
 
     <!-- PANEL DERECHO -->

@@ -17,6 +17,8 @@
 No es un simple juego de capturas; es un sistema de evolución constante, donde cada pieza tiene el potencial de transformarse en una versión más poderosa de sí misma. No se gana con ataques relámpago, sino con una gestión sofisticada de recursos, una planificación meticulosa de la evolución y una arquitectura defensiva que convierta tu retaguardia en una fortaleza impenetrable.
 
 Esta versión demo web interactiva incluye un entorno de prueba de movimientos, un *Editor de Juego* para la creación de escenarios, modo multijugador local y un motor de Inteligencia Artificial (CPU) optimizado en JavaScript.
+
+> (La versión Open Core incluye un editor reducido; la versión premium de **[itch.io](https://gonza-2907.itch.io/ajedrez-imperial)** ofrecera el editor completo con generación aleatoria).
 <br clear="right" />
 
 ## 🎯 El Modelo "Open Core"
@@ -53,7 +55,7 @@ Este repositorio contiene el **código fuente del motor de juego (Open Core)**, 
 
 * 🌐 **Soporte Bilingüe (ES / EN)**: Interfaz y documentación integradas en español e inglés (En desarrollo)
 * ⚡ **Motor CPU Avanzado**: Optimización con Poda Alpha-Beta en el algoritmo Minimax para búsquedas más profundas, respuestas más rápidas y jugadas dinámicas.
-* 🎨 **Editor de Tablero:** Herramienta (disponible en la versión final de itch.io) para creadores y pruebas tácticas de posiciones personalizadas.
+* 🎨 **Editor de Tablero (Demo):** Herramienta ligera incluida en la demo de GitHub para colocar piezas, probar posiciones manualmente y exportar escenarios. La versión completa con generación aleatoria y más herramientas está disponible en la verison de [itch.io.](https://gonza-2907.itch.io/ajedrez-imperial)
 * 🏰 **Mecánicas Evolutivas:** Sistema de promoción por Caza (Shogi) y por Territorio.
 * 🛡️ **Enroque Imperial:** Creación de castillos defensivos (Anaguma, Yagura, Mino).
 
@@ -76,6 +78,7 @@ Puedes probar la versión alfa directamente en tu navegador (compatible con PC y
 * Editor de Juego / Modo Práctica (Sandbox para Creadores)
 * PVP local - Modo Humano vs. Humano (Multijugador Local)
 * PVC - Modo Humano vs. CPU (Minimax con Poda Alpha-Beta)
+* Editor de Tablero (Open Core): Coloca piezas, prueba movimientos manuales y guarda posiciones. Acceder al [**Editor**](https://haruki-24.github.io/Ajedrez-Imperial/editor.html)
 
 ## 🏗️ Arquitectura Técnica
 

@@ -1,8 +1,4 @@
-/* styles.css — Ajedrez Imperial 10x10 (GitHub / Open Core)
-   Versión reducida: layout base, grid 14x14, casillas, piezas,
-   perspectivas 2D/2.5D/3D, overlays de highlight y responsive.
-   Sin: aside colapsable, contador de material, historial inferior.
-*/
+/* styles.css — Ajedrez Imperial 10x10 (GitHub / Open Core) */
 
 /* ==========================================
    1. RESET / LAYOUT BASE
@@ -50,19 +46,14 @@ main {
 }
 
 /* ==========================================
-   3. TABLERO 14x14 + FONDO DE ESCENARIO
+   3. TABLERO 14x14
+   El fondo del escenario se aplica en .board-bg (no aquí).
    ========================================== */
 
-/* El fondo del escenario (city / volcano1) se aplica aquí
-   desde render.js vía backgroundImage inline. */
 #board {
     position: relative;
     z-index: 10;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     border-radius: 4px;
-    overflow: hidden;
 }
 
 .board-container {
@@ -78,7 +69,7 @@ main {
 }
 
 /* ==========================================
-   4. PERSPECTIVAS
+   4. PERSPECTIVAS (UNA SOLA DEFINICIÓN por selector)
    ========================================== */
 
 /* --- 2D --- */
@@ -86,9 +77,9 @@ main {
     transform: none;
 }
 
-/* --- 2.5D isométrica --- */
+/* --- 2.5D isométrica (valores oficiales de itch.io) --- */
 .perspective-2-5d {
-    transform: perspective(1200px) rotateX(35deg) rotateZ(60deg);
+    transform: perspective(1200px) translateY(80px) rotateX(57deg) rotateZ(50deg);
     transform-style: preserve-3d;
     margin-top: 16px;
     gap: 0 !important;
@@ -107,9 +98,10 @@ main {
     z-index: 10;
 }
 
+/* Pieza en 2.5D: billboard 3D (compensa la rotación del tablero) */
 .perspective-2-5d .piece {
     transform-style: preserve-3d;
-    transform: translateZ(16px) rotateZ(-60deg) rotateX(-35deg);
+    transform: translateZ(20px) translateY(10px) rotateZ(-43deg) rotateX(-60deg);
     transition: transform 0.15s ease;
 }
 
@@ -117,11 +109,12 @@ main {
     transform: scale(calc(var(--piece-scale, 1) + 0.05));
 }
 
+/* :active debe ser .piece + scale(0.92) — misma rotación que .piece */
 .perspective-2-5d .piece:active {
-    transform: translateZ(16px) rotateZ(-60deg) rotateX(-35deg) scale(0.92);
+    transform: translateZ(20px) translateY(10px) rotateZ(-43deg) rotateX(-60deg) scale(0.92);
 }
 
-/* Overlays de highlight en 2.5D (texturas) */
+/* Overlays de highlight en 2.5D (sobre texturas) */
 .perspective-2-5d .square.selected::after {
     content: '';
     position: absolute;
@@ -147,6 +140,12 @@ main {
     background-color: rgba(255, 0, 0, 0.65);
     pointer-events: none;
     z-index: 1;
+}
+
+/* Marcadores de movimiento en 2.5D */
+.perspective-2-5d .valid-move-dot,
+.perspective-2-5d .valid-capture-ring {
+    transform: translateZ(1px);
 }
 
 /* --- 3D elevado --- */
@@ -319,11 +318,6 @@ main {
     pointer-events: none;
 }
 
-.perspective-2-5d .valid-move-dot,
-.perspective-2-5d .valid-capture-ring {
-    transform: translateZ(1px);
-}
-
 /* ==========================================
    8. COORDENADAS INTERNAS
    ========================================== */
@@ -347,7 +341,7 @@ main {
 .square.dark  .square-coord { color: var(--sq-light); }
 
 /* ==========================================
-   9. UI MÍNIMA (mensaje, turno, capturas)
+   9. UI MÍNIMA
    ========================================== */
 
 #game-message {
@@ -366,14 +360,71 @@ main {
     display: inline-block;
 }
 
-#white-captures,
-#black-captures {
-    font-weight: 700;
-    color: var(--text-main);
+/* ==========================================
+   10. FONDO DE ESCENARIO (Chibi 2.5D)
+   ========================================== */
+
+.board-bg {
+    position: absolute;
+    inset: -20%;
+    width: 140%;
+    height: 140%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+main.show-board-bg .board-bg {
+    opacity: 1;
+    visibility: visible;
+}
+
+main:not(.show-board-bg) .board-frame {
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.board-frame {
+    position: relative;
+    z-index: 5;
+    border-radius: 4px;
+    padding: 8px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* ==========================================
-   10. UTILIDADES
+   11. ESPACIO EXTRA PARA 2.5D
+   El tablero rotado y translateY(80px) necesita margen extra.
+   ========================================== */
+
+main:has(.perspective-2-5d) {
+    padding: 60px 0;
+    min-height: 500px;
+}
+
+@media (max-width: 1024px) {
+    main:has(.perspective-2-5d) {
+        padding: 40px 0;
+        min-height: 400px;
+    }
+}
+
+@media (max-width: 640px) {
+    main:has(.perspective-2-5d) {
+        padding: 30px 0;
+        min-height: 320px;
+    }
+}
+
+/* ==========================================
+   12. UTILIDADES
    ========================================== */
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -392,7 +443,7 @@ main {
 }
 
 /* ==========================================
-   11. RESPONSIVE
+   13. RESPONSIVE
    ========================================== */
 
 @media (max-width: 1024px) {
