@@ -30,8 +30,6 @@ Este repositorio contiene el **código fuente del motor de juego (Open Core)**, 
 *   **GitHub:** Es la vitrina técnica y el punto de encuentro para desarrolladores y pruebas de concepto.
 *   **itch.io:** Es el producto final pulido. Las donaciones y compras del Modo Editor/Manual Estratégico van destinadas a financiar la publicación en Google Play.
 
----
-
 ## 🎨 Galería de Arte y Diseño
 
 *Un vistazo al diseño visual y la identidad de las piezas.*
@@ -55,7 +53,7 @@ Este repositorio contiene el **código fuente del motor de juego (Open Core)**, 
 
 * 🌐 **Soporte Bilingüe (ES / EN)**: Interfaz y documentación integradas en español e inglés (En desarrollo)
 * ⚡ **Motor CPU Avanzado**: Optimización con Poda Alpha-Beta en el algoritmo Minimax para búsquedas más profundas, respuestas más rápidas y jugadas dinámicas.
-* 🎨 **Editor de Tablero (Demo):** Herramienta ligera incluida en la demo de GitHub para colocar piezas, probar posiciones manualmente y exportar escenarios. La versión completa con generación aleatoria y más herramientas está disponible en la verison de [itch.io.](https://gonza-2907.itch.io/ajedrez-imperial)
+* 🎨 **Editor de Tablero (Demo):** Herramienta ligera incluida en la demo de GitHub para colocar piezas y probar posiciones manualmente. La versión completa con generación aleatoria, exportación JSON y juego contra la CPU está disponible en la versión Premium de [itch.io.](https://gonza-2907.itch.io/ajedrez-imperial)
 * 🏰 **Mecánicas Evolutivas:** Sistema de promoción por Caza (Shogi) y por Territorio.
 * 🛡️ **Enroque Imperial:** Creación de castillos defensivos (Anaguma, Yagura, Mino).
 
@@ -67,6 +65,7 @@ Para consultar la jerarquía militar completa, el movimiento de las unidades y l
 *   📜 **[Official Rulebook (English)](./assets/docs/official-rulebook-imperial-chess-en.pdf)**
 
 > 📘 *El **Manual de Estrategias Avanzadas** (aperturas, castillos y tácticas avanzadas) se ofrece como un extra premium en la página de itch.io para apoyar el desarrollo.*
+
 
 ## 🎮 Juega la Demo en Línea
 
@@ -80,17 +79,54 @@ Puedes probar la versión alfa directamente en tu navegador (compatible con PC y
 * PVC - Modo Humano vs. CPU (Minimax con Poda Alpha-Beta)
 * Editor de Tablero (Open Core): Coloca piezas, prueba movimientos manuales y guarda posiciones. Acceder al [**Editor**](https://haruki-24.github.io/Ajedrez-Imperial/editor.html)
 
+
 ## 🏗️ Arquitectura Técnica
+El proyecto está desarrollado desde cero utilizando estándares web modernos (Sin frameworks pesados), priorizando la escalabilidad y el rendimiento del motor.
 
-El proyecto está desarrollado desde cero utilizando estándares web modernos (Sin frameworks pesados):
+### ⚡ Motor de IA (cpu.js) - El Núcleo del Proyecto
 
-*   **Frontend:** HTML5, CSS3 (Tailwind CSS) y JavaScript Vanilla.
-*   **Motor CPU (`cpu.js`):** Implementación del algoritmo **Minimax con Poda Alpha-Beta**. Esta optimización descarta ramas ineficientes del árbol de búsqueda, garantizando tiempos de respuesta óptimos.
-*   **Lógica de Estado:** Representación del tablero 10x10 mediante matrices, validación de movimientos complejos (saltos, evoluciones y enroques).
+El sistema de Inteligencia Artificial es el componente más avanzado del juego, implementando técnicas de optimización de nivel profesional:
 
-*(Si eres desarrollador, puedes explorar el código del motor en la carpeta `js/` para ver la implementación del algoritmo).*
+* **Minimax con Poda Alpha-Beta**: Algoritmo de búsqueda en árbol que descarta ramas ineficientes, permitiendo explorar jugadas más profundas en milisegundos.
+* **Búsqueda de Quietud (Quiescence Search)**: Evita el "efecto horizonte" evaluando secuencias de capturas antes de tomar una decisión, evitando que la IA regale piezas.
+* **Zobrist Hashing & Tabla de Transposiciones**: Sistema de memoria que evita recalcular posiciones ya evaluadas, optimizando drásticamente el rendimiento.
+*   *Nota: La versión completa de itch.io expande este motor con un **Libro de Aperturas Estratégico** y **Personalidades de IA** adaptativas (desde nivel principiante hasta maestro) que ejecutan castillos defensivos (Anaguma, Yagura) y tácticas avanzadas.*
 
----
+### 🧩 Arquitectura Modular (Core / UI)
+
+El código implementa una separación estricta de responsabilidades (Patrón MVC simplificado), garantizando que la lógica del juego sea independiente de la interfaz gráfica:
+* `core/` **(Lógica Pura)**: Motor de reglas desacoplado del DOM (game.js, cpu.js, constants.js). Las funciones son puras y deterministas, reutilizables en el navegador, en la CPU y en los editores.
+* `ui/` **(Renderizado)**: Capa de presentación encargada de manipular el DOM, capturar eventos, gestionar temas visuales y renderizar el tablero en 2D/2.5D.
+* `editor/` **(Apps Independientes)**: Módulos de edición empaquetados de forma autónoma (Free y Premium) que consumen el mismo motor core/ pero con su propia interfaz.
+
+### 🚀 Visión de la Versión Premium (itch.io)
+
+La versión completa alojada en itch.io expande las capacidades del motor con:
+
+* **Libro de Aperturas Estratégico**: La IA no solo calcula, sino que ejecuta formaciones tácticas (Sistema Londres, Castillos Anaguma, Carreras de Caballos) adaptándose al nivel del jugador, volviendo el juego sumamente entretenido y desafiante.
+
+*(Si eres desarrollador, puedes explorar el código del motor en la carpeta js/core/ para ver la implementación de los algoritmos).*
+
+## 📂 Estructura del Proyecto
+
+```txt
+├── index.html               # Juego principal (Demo)
+├── js/
+│   ├── core/                # Motor lógico puro (Reglas, CPU, Constantes)
+│   └── ui/                  # Renderizado e interfaz (Main, Render, Translate)
+├── editor/
+│   ├── free/                # Editor Free (Open Core)
+│   └── premium/             # Editor Premium (Distribuido vía itch.io)
+└── assets/                  # Recursos gráficos (Piezas, Tableros, Fuentes)
+```
+
+## 🗺️ Próximas Etapas de Desarrollo (Roadmap)
+
+Tras la reciente refactorización arquitectónica y la corrección de los bugs del motor, el proyecto entra en su fase más ambiciosa:
+
+*   **🏰 Modo Historia / Campaña:** Aprovechando los recursos visuales 2.5D (City, Volcano, Ice, etc.), implementaremos un modo campaña donde cada nivel represente una batalla táctica con condiciones de victoria únicas y escenarios cambiantes.
+*   **📖 Expansión del Lore:** Integración de una narrativa ligera que contextualice el avance de las piezas (la evolución de Escudero a Alfil, etc.).
+*   **🌐 Multiplayer Online:** Exploración de WebSockets para conectar jugadores a través de la red.
 
 ## 🚀 Apoya el Proyecto (Meta: Google Play)
 
@@ -101,8 +137,6 @@ Si te gusta el juego o te interesa el motor, puedes apoyar de las siguientes for
 2.  **Compartiendo el proyecto** con entusiastas de los juegos de estrategia.
 3.  **Contribuyendo al código** o reportando issues en este repositorio.
 
----
-
 ## 🧪 Fase de Pruebas (Alpha Testing)
 
 La demo en GitHub Pages sigue activa para recolección de métricas y sugerencias sobre:
@@ -111,8 +145,6 @@ La demo en GitHub Pages sigue activa para recolección de métricas y sugerencia
 *   **UI/UX:** Fluidez en móviles.
 
 Puedes abrir un **Issue** si encuentras algún bug en la versión demo.
-
----
 
 ## 📜 Licencia y Propiedad Intelectual
 
